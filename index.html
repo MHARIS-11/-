@@ -1,0 +1,2295 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" href="data:,">
+  <title>จำไว้ก่อน</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: oklch(1 0 0);
+      --surface: oklch(0.975 0.004 160);
+      --surface-2: oklch(0.94 0.012 160);
+      --ink: oklch(0.18 0.025 170);
+      --muted: oklch(0.43 0.024 170);
+      --line: oklch(0.86 0.014 160);
+      --line-strong: oklch(0.74 0.028 160);
+      --primary: oklch(0.4 0.095 160);
+      --primary-2: oklch(0.32 0.09 160);
+      --primary-soft: oklch(0.92 0.05 160);
+      --accent: oklch(0.6 0.16 34);
+      --accent-soft: oklch(0.94 0.04 34);
+      --warning: oklch(0.7 0.13 82);
+      --danger: oklch(0.56 0.17 26);
+      --success: oklch(0.53 0.12 155);
+      --focus: oklch(0.6 0.14 210);
+      --shadow: 0 6px 14px oklch(0.18 0.025 170 / 0.08);
+      --radius: 8px;
+      --tap: 46px;
+      --sidebar: 244px;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    a {
+      color: var(--primary);
+    }
+
+    .app-shell {
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 22px 16px;
+      border-right: 1px solid var(--line);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: var(--tap);
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      color: oklch(1 0 0);
+      background: var(--primary);
+      flex: 0 0 auto;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.18rem;
+      line-height: 1.15;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .brand small {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      margin-top: 2px;
+    }
+
+    .nav-group {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav-button {
+      min-height: var(--tap);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      text-align: left;
+      font-weight: 700;
+    }
+
+    .nav-button:hover {
+      background: var(--surface-2);
+      color: var(--ink);
+    }
+
+    .nav-button.is-active {
+      background: var(--primary);
+      color: oklch(1 0 0);
+    }
+
+    .nav-button svg,
+    .icon-button svg,
+    .primary-button svg,
+    .ghost-button svg,
+    .chip svg {
+      width: 19px;
+      height: 19px;
+      stroke-width: 2.2;
+      flex: 0 0 auto;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      color: var(--muted);
+      font-size: 0.82rem;
+      display: grid;
+      gap: 8px;
+    }
+
+    .sync-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--line-strong);
+      display: inline-block;
+    }
+
+    .sync-dot.is-online {
+      background: var(--success);
+    }
+
+    .sync-dot.is-busy {
+      background: var(--warning);
+    }
+
+    .sync-dot.is-error {
+      background: var(--danger);
+    }
+
+    .main {
+      min-width: 0;
+      padding: 24px clamp(16px, 3vw, 38px) 38px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 0 auto 20px;
+      max-width: 1180px;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 1.6rem;
+      line-height: 1.16;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .page-subtitle {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .content {
+      max-width: 1180px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .today-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 350px);
+      align-items: start;
+      gap: 16px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--bg);
+    }
+
+    .panel-pad {
+      padding: 14px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 14px 0;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.25;
+      font-weight: 800;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .summary-item {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--bg);
+      min-height: 78px;
+      padding: 12px;
+      display: grid;
+      align-content: center;
+      gap: 2px;
+    }
+
+    .summary-item strong {
+      font-size: 1.55rem;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .summary-item span {
+      color: var(--muted);
+      font-size: 0.84rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .quick-capture {
+      display: grid;
+      gap: 10px;
+    }
+
+    .quick-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .field,
+    .select,
+    .textarea {
+      width: 100%;
+      min-height: var(--tap);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--ink);
+      padding: 0 12px;
+      outline: none;
+    }
+
+    .textarea {
+      min-height: 96px;
+      padding: 10px 12px;
+      resize: vertical;
+    }
+
+    .field::placeholder,
+    .textarea::placeholder {
+      color: oklch(0.38 0.025 170);
+    }
+
+    .field:focus,
+    .select:focus,
+    .textarea:focus,
+    .chip:focus-visible,
+    .primary-button:focus-visible,
+    .ghost-button:focus-visible,
+    .icon-button:focus-visible,
+    .nav-button:focus-visible {
+      outline: 3px solid oklch(0.8 0.12 210 / 0.7);
+      outline-offset: 2px;
+    }
+
+    .primary-button,
+    .ghost-button,
+    .danger-button,
+    .icon-button,
+    .chip {
+      min-height: var(--tap);
+      border-radius: var(--radius);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-weight: 800;
+      white-space: nowrap;
+      transition: background 180ms ease, color 180ms ease, border-color 180ms ease, transform 180ms ease;
+    }
+
+    .primary-button {
+      background: var(--primary);
+      color: oklch(1 0 0);
+      padding: 0 15px;
+    }
+
+    .primary-button:hover {
+      background: var(--primary-2);
+    }
+
+    .ghost-button {
+      background: var(--surface);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      padding: 0 13px;
+    }
+
+    .ghost-button:hover {
+      background: var(--surface-2);
+      border-color: var(--line-strong);
+    }
+
+    .danger-button {
+      background: oklch(0.96 0.035 26);
+      color: var(--danger);
+      border: 1px solid oklch(0.82 0.08 26);
+      padding: 0 13px;
+    }
+
+    .icon-button {
+      width: var(--tap);
+      min-width: var(--tap);
+      padding: 0;
+      background: var(--surface);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    .icon-button:hover {
+      background: var(--surface-2);
+      border-color: var(--line-strong);
+    }
+
+    .chip-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: thin;
+    }
+
+    .chip {
+      padding: 0 12px;
+      background: var(--surface);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      min-height: 38px;
+      font-size: 0.9rem;
+      flex: 0 0 auto;
+    }
+
+    .chip.is-active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: oklch(1 0 0);
+    }
+
+    .chip.is-warm {
+      background: var(--accent-soft);
+      border-color: oklch(0.82 0.08 34);
+      color: oklch(0.31 0.07 34);
+    }
+
+    .task-list {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .task-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--bg);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .task-card.is-important {
+      border-color: oklch(0.72 0.11 34);
+      background: oklch(0.985 0.012 34);
+    }
+
+    .task-card.is-overdue {
+      border-color: oklch(0.72 0.1 26);
+    }
+
+    .task-card.is-done {
+      background: var(--surface);
+      color: var(--muted);
+    }
+
+    .task-main {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .check-button {
+      width: 34px;
+      height: 34px;
+      min-height: 34px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line-strong);
+      background: var(--bg);
+      color: transparent;
+      display: grid;
+      place-items: center;
+      margin-top: 1px;
+      flex: 0 0 auto;
+    }
+
+    .check-button.is-done {
+      background: var(--success);
+      border-color: var(--success);
+      color: oklch(1 0 0);
+    }
+
+    .task-title {
+      margin: 0;
+      color: var(--ink);
+      font-size: 1rem;
+      font-weight: 800;
+      line-height: 1.32;
+      overflow-wrap: anywhere;
+    }
+
+    .task-card.is-done .task-title {
+      color: var(--muted);
+      text-decoration: line-through;
+      text-decoration-thickness: 2px;
+    }
+
+    .task-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 7px;
+    }
+
+    .tag {
+      min-height: 28px;
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--muted);
+      border: 1px solid var(--line);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 9px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      max-width: 100%;
+    }
+
+    .tag strong {
+      color: var(--ink);
+    }
+
+    .tag.is-important {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: oklch(1 0 0);
+    }
+
+    .tag.is-overdue {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: oklch(1 0 0);
+    }
+
+    .tag.is-today {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: oklch(1 0 0);
+    }
+
+    .task-notes {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      overflow-wrap: anywhere;
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding-left: 44px;
+    }
+
+    .mini-button {
+      min-height: 36px;
+      border-radius: var(--radius);
+      padding: 0 10px;
+      background: var(--surface);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 0.86rem;
+      font-weight: 800;
+    }
+
+    .mini-button:hover {
+      background: var(--surface-2);
+    }
+
+    .empty-state {
+      min-height: 220px;
+      display: grid;
+      place-items: center;
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .empty-state strong {
+      display: block;
+      color: var(--ink);
+      font-size: 1.05rem;
+      margin-bottom: 5px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .form-field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .form-field.full {
+      grid-column: 1 / -1;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 800;
+    }
+
+    .section-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .split-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(290px, 390px);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-bar .field,
+    .filter-bar .select {
+      max-width: 280px;
+    }
+
+    .repeat-list,
+    .settings-list {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .repeat-item,
+    .settings-block {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      background: var(--bg);
+    }
+
+    .settings-block h3,
+    .repeat-item h3 {
+      margin: 0;
+      font-size: 0.98rem;
+      line-height: 1.3;
+    }
+
+    .settings-block p,
+    .repeat-item p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .status-line {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .code-box {
+      width: 100%;
+      max-height: 170px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 12px;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 0.82rem;
+      white-space: pre;
+    }
+
+    dialog {
+      width: min(620px, calc(100vw - 24px));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 0;
+      background: var(--bg);
+      color: var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    dialog::backdrop {
+      background: oklch(0.18 0.025 170 / 0.28);
+    }
+
+    .dialog-header {
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .dialog-header h2 {
+      margin: 0;
+      font-size: 1.05rem;
+      line-height: 1.25;
+    }
+
+    .dialog-body {
+      padding: 14px;
+    }
+
+    .dialog-actions {
+      padding: 0 14px 14px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%) translateY(14px);
+      background: var(--ink);
+      color: oklch(1 0 0);
+      border-radius: var(--radius);
+      min-height: 44px;
+      max-width: min(520px, calc(100vw - 28px));
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+      z-index: 50;
+      font-weight: 750;
+    }
+
+    .toast.is-showing {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .mobile-nav {
+      display: none;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 980px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .main {
+        padding: 18px 14px calc(96px + env(safe-area-inset-bottom));
+      }
+
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .top-actions {
+        justify-content: flex-start;
+      }
+
+      .today-layout,
+      .split-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .mobile-nav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 4px;
+        padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+        background: var(--bg);
+        border-top: 1px solid var(--line);
+      }
+
+      .mobile-nav .nav-button {
+        min-height: 58px;
+        padding: 5px 2px;
+        flex-direction: column;
+        gap: 3px;
+        justify-content: center;
+        font-size: 0.72rem;
+        text-align: center;
+      }
+
+      .mobile-nav .nav-button svg {
+        width: 20px;
+        height: 20px;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .page-title {
+        font-size: 1.34rem;
+      }
+
+      .quick-row {
+        grid-template-columns: 1fr;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-bar .field,
+      .filter-bar .select {
+        max-width: none;
+      }
+
+      .task-actions {
+        padding-left: 0;
+      }
+
+      .summary-item {
+        min-height: 72px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="เมนูหลัก">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M9 11l3 3L22 4"></path>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+        </div>
+        <div>
+          <h1>จำไว้ก่อน</h1>
+          <small>วันนี้ต้องเห็น</small>
+        </div>
+      </div>
+      <nav class="nav-group" id="desktopNav"></nav>
+      <div class="sidebar-footer">
+        <div class="status-line">
+          <span class="sync-dot" id="desktopSyncDot"></span>
+          <span id="desktopSyncText">Local only</span>
+        </div>
+        <span id="desktopTodayText"></span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2 class="page-title" id="pageTitle">วันนี้</h2>
+          <p class="page-subtitle" id="pageSubtitle"></p>
+        </div>
+        <div class="top-actions">
+          <button class="ghost-button" type="button" id="syncNowButton">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M21 12a9 9 0 0 0-15-6.7L3 8"></path>
+              <path d="M3 3v5h5"></path>
+              <path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path>
+              <path d="M21 21v-5h-5"></path>
+            </svg>
+            Sync
+          </button>
+          <button class="primary-button" type="button" id="newTaskButton">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M12 5v14"></path>
+              <path d="M5 12h14"></path>
+            </svg>
+            เพิ่มงาน
+          </button>
+        </div>
+      </header>
+
+      <section class="content" id="appView" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <nav class="mobile-nav" id="mobileNav" aria-label="เมนูหลักบนมือถือ"></nav>
+
+  <dialog id="taskDialog">
+    <form method="dialog" id="taskForm">
+      <div class="dialog-header">
+        <h2 id="taskDialogTitle">เพิ่มงาน</h2>
+        <button class="icon-button" type="button" id="closeTaskDialog" aria-label="ปิด">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M18 6L6 18"></path>
+            <path d="M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="dialog-body">
+        <div class="form-grid">
+          <input type="hidden" id="taskId">
+          <label class="form-field full">
+            <span class="label">รายการ</span>
+            <input class="field" id="taskTitle" list="phraseList" autocomplete="off" required maxlength="160" placeholder="เช่น เคลียร์เงินมัดจำผู้รับเหมา">
+          </label>
+          <label class="form-field">
+            <span class="label">วัน</span>
+            <input class="field" id="taskDueDate" type="date">
+          </label>
+          <label class="form-field">
+            <span class="label">หมวด</span>
+            <select class="select" id="taskCategory"></select>
+          </label>
+          <label class="form-field">
+            <span class="label">ความสำคัญ</span>
+            <select class="select" id="taskPriority">
+              <option value="normal">ปกติ</option>
+              <option value="important">สำคัญ</option>
+            </select>
+          </label>
+          <label class="form-field">
+            <span class="label">สถานะ</span>
+            <select class="select" id="taskStatus">
+              <option value="open">ยังไม่เสร็จ</option>
+              <option value="done">เสร็จแล้ว</option>
+            </select>
+          </label>
+          <label class="form-field full">
+            <span class="label">โน้ต</span>
+            <textarea class="textarea" id="taskNotes" maxlength="600" placeholder="รายละเอียดสั้น ๆ ถ้ามี"></textarea>
+          </label>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="ghost-button" type="button" id="cancelTaskEdit">ยกเลิก</button>
+        <button class="primary-button" type="submit">บันทึกงาน</button>
+      </div>
+    </form>
+  </dialog>
+
+  <datalist id="phraseList"></datalist>
+  <input class="sr-only" id="importFile" type="file" accept="application/json,.json">
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const STORAGE_KEY = "jamwaikorn_state_v1";
+      const SETTINGS_KEY = "jamwaikorn_settings_v1";
+      const SYNC_INTERVAL_MS = 35000;
+      const DEFAULT_CATEGORIES = [
+        "งาน",
+        "ชีวิต",
+        "ซื้อของ",
+        "การเงิน",
+        "บ้าน",
+        "สุขภาพ",
+        "ออกกำลังกาย",
+        "ไอเดีย",
+        "รอติดตาม",
+        "อื่น ๆ"
+      ];
+
+      const NAV_ITEMS = [
+        { id: "today", label: "วันนี้", icon: "calendar" },
+        { id: "inbox", label: "Inbox", icon: "inbox" },
+        { id: "all", label: "ทั้งหมด", icon: "list" },
+        { id: "repeat", label: "ซ้ำประจำ", icon: "repeat" },
+        { id: "settings", label: "Settings", icon: "settings" }
+      ];
+
+      const THAI_DAYS = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัส", "ศุกร์", "เสาร์"];
+      const THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+
+      let state = loadState();
+      let settings = loadSettings();
+      let currentView = "today";
+      let allFilter = { q: "", category: "all", status: "open" };
+      let selectedQuickDue = smartDefaultDue();
+      let selectedQuickCategory = "งาน";
+      let selectedQuickPriority = "normal";
+      let syncTimer = null;
+      let syncBusy = false;
+      let pendingSync = null;
+      let toastTimer = null;
+
+      const el = {
+        appView: document.querySelector("#appView"),
+        pageTitle: document.querySelector("#pageTitle"),
+        pageSubtitle: document.querySelector("#pageSubtitle"),
+        desktopNav: document.querySelector("#desktopNav"),
+        mobileNav: document.querySelector("#mobileNav"),
+        newTaskButton: document.querySelector("#newTaskButton"),
+        syncNowButton: document.querySelector("#syncNowButton"),
+        taskDialog: document.querySelector("#taskDialog"),
+        taskForm: document.querySelector("#taskForm"),
+        closeTaskDialog: document.querySelector("#closeTaskDialog"),
+        cancelTaskEdit: document.querySelector("#cancelTaskEdit"),
+        taskDialogTitle: document.querySelector("#taskDialogTitle"),
+        taskId: document.querySelector("#taskId"),
+        taskTitle: document.querySelector("#taskTitle"),
+        taskDueDate: document.querySelector("#taskDueDate"),
+        taskCategory: document.querySelector("#taskCategory"),
+        taskPriority: document.querySelector("#taskPriority"),
+        taskStatus: document.querySelector("#taskStatus"),
+        taskNotes: document.querySelector("#taskNotes"),
+        phraseList: document.querySelector("#phraseList"),
+        toast: document.querySelector("#toast"),
+        importFile: document.querySelector("#importFile"),
+        desktopSyncDot: document.querySelector("#desktopSyncDot"),
+        desktopSyncText: document.querySelector("#desktopSyncText"),
+        desktopTodayText: document.querySelector("#desktopTodayText")
+      };
+
+      const icons = {
+        calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M3 10h18"></path></svg>',
+        inbox: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 12h-6l-2 3h-4l-2-3H2"></path><path d="M5.5 5h13L22 12v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7Z"></path></svg>',
+        list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path></svg>',
+        repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m17 2 4 4-4 4"></path><path d="M3 11V9a3 3 0 0 1 3-3h15"></path><path d="m7 22-4-4 4-4"></path><path d="M21 13v2a3 3 0 0 1-3 3H3"></path></svg>',
+        settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+        plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>',
+        check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6 9 17l-5-5"></path></svg>',
+        edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>',
+        trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>',
+        sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>',
+        download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg>',
+        upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 21V9"></path><path d="m7 14 5-5 5 5"></path><path d="M5 3h14"></path></svg>'
+      };
+
+      init();
+
+      function init() {
+        state = ensureState(state);
+        settings = ensureSettings(settings);
+        ensureRepeats();
+        saveState(false);
+        saveSettings();
+        renderNav();
+        bindEvents();
+        render();
+        updateSyncStatus();
+        startAutoSync();
+        if (hasSyncConfig()) {
+          pullFromCloud({ silent: true });
+        }
+      }
+
+      function bindEvents() {
+        el.newTaskButton.addEventListener("click", () => openTaskDialog());
+        el.syncNowButton.addEventListener("click", () => pullFromCloud({ silent: false }));
+        el.closeTaskDialog.addEventListener("click", () => el.taskDialog.close());
+        el.cancelTaskEdit.addEventListener("click", () => el.taskDialog.close());
+        el.taskForm.addEventListener("submit", saveTaskFromDialog);
+        el.importFile.addEventListener("change", importBackupFile);
+        document.addEventListener("visibilitychange", () => {
+          if (!document.hidden && hasSyncConfig()) {
+            pullFromCloud({ silent: true });
+          }
+        });
+        window.addEventListener("online", () => {
+          toast("กลับมาออนไลน์แล้ว");
+          pullFromCloud({ silent: true });
+        });
+        window.addEventListener("offline", () => {
+          updateSyncStatus("error", "Offline");
+        });
+      }
+
+      function renderNav() {
+        const html = NAV_ITEMS.map(item => `
+          <button class="nav-button ${item.id === currentView ? "is-active" : ""}" type="button" data-view="${item.id}">
+            ${icons[item.icon]}
+            <span>${escapeHtml(item.label)}</span>
+          </button>
+        `).join("");
+        el.desktopNav.innerHTML = html;
+        el.mobileNav.innerHTML = html;
+        document.querySelectorAll("[data-view]").forEach(button => {
+          button.addEventListener("click", () => {
+            currentView = button.dataset.view;
+            renderNav();
+            render();
+          });
+        });
+      }
+
+      function render() {
+        ensureRepeats();
+        renderDatalist();
+        renderCategoryOptions();
+        el.desktopTodayText.textContent = formatFullDate(todayISO());
+        const summary = getSummary();
+        const titles = {
+          today: ["วันนี้", `${summary.overdue ? `ค้าง ${summary.overdue} รายการ · ` : ""}${summary.today} รายการสำหรับวันนี้`],
+          inbox: ["Inbox", `${summary.inbox} รายการที่ยังไม่กำหนดวัน`],
+          all: ["ทั้งหมด", "ค้นหา กรอง และจัดการทุกงาน"],
+          repeat: ["ซ้ำประจำ", "งานที่ควรกลับมาเองตามรอบ"],
+          settings: ["Settings", hasSyncConfig() ? "Cloud Sync พร้อมใช้งาน" : "Local first, ตั้งค่า sync ได้ที่นี่"]
+        };
+        el.pageTitle.textContent = titles[currentView][0];
+        el.pageSubtitle.textContent = titles[currentView][1];
+
+        if (currentView === "today") renderToday();
+        if (currentView === "inbox") renderInbox();
+        if (currentView === "all") renderAll();
+        if (currentView === "repeat") renderRepeat();
+        if (currentView === "settings") renderSettings();
+        updateSyncStatus();
+      }
+
+      function renderToday() {
+        const tasks = getOpenTasks()
+          .filter(task => isOverdue(task) || task.dueDate === todayISO())
+          .sort(taskSorter);
+        const important = getOpenTasks()
+          .filter(task => task.priority === "important" && !task.dueDate)
+          .sort(taskSorter);
+        el.appView.innerHTML = `
+          ${renderSummaryGrid()}
+          <div class="today-layout">
+            <section class="panel">
+              <div class="panel-header">
+                <h3 class="panel-title">ต้องเห็นตอนนี้</h3>
+                <button class="ghost-button" type="button" data-action="move-overdue-today">ดึงงานค้างมาวันนี้</button>
+              </div>
+              ${renderTaskList([...tasks, ...important], "ยังไม่มีงานสำหรับวันนี้")}
+            </section>
+            <aside class="section-stack">
+              ${renderQuickCapture()}
+              ${renderUpcomingPanel()}
+            </aside>
+          </div>
+        `;
+        bindCommonActions();
+        bindQuickCapture();
+      }
+
+      function renderInbox() {
+        const tasks = getOpenTasks().filter(task => !task.dueDate).sort(taskSorter);
+        el.appView.innerHTML = `
+          <div class="split-panel">
+            <section class="panel">
+              <div class="panel-header">
+                <h3 class="panel-title">ยังไม่กำหนดวัน</h3>
+                <button class="primary-button" type="button" data-action="new-task">${icons.plus}เพิ่มงาน</button>
+              </div>
+              ${renderTaskList(tasks, "Inbox ว่างอยู่")}
+            </section>
+            ${renderQuickCapture()}
+          </div>
+        `;
+        bindCommonActions();
+        bindQuickCapture();
+      }
+
+      function renderAll() {
+        const tasks = filterAllTasks();
+        el.appView.innerHTML = `
+          <section class="panel">
+            <div class="panel-pad section-stack">
+              <div class="filter-bar">
+                <input class="field" id="searchInput" type="search" placeholder="ค้นหางาน" value="${escapeAttr(allFilter.q)}">
+                <select class="select" id="categoryFilter">
+                  <option value="all">ทุกหมวด</option>
+                  ${state.categories.map(cat => `<option value="${escapeAttr(cat)}" ${allFilter.category === cat ? "selected" : ""}>${escapeHtml(cat)}</option>`).join("")}
+                </select>
+                <select class="select" id="statusFilter">
+                  <option value="open" ${allFilter.status === "open" ? "selected" : ""}>ยังไม่เสร็จ</option>
+                  <option value="done" ${allFilter.status === "done" ? "selected" : ""}>เสร็จแล้ว</option>
+                  <option value="all" ${allFilter.status === "all" ? "selected" : ""}>ทุกสถานะ</option>
+                </select>
+              </div>
+            </div>
+            ${renderTaskList(tasks, "ไม่พบรายการที่ตรงกับตัวกรอง")}
+          </section>
+        `;
+        bindCommonActions();
+        document.querySelector("#searchInput").addEventListener("input", event => {
+          allFilter.q = event.target.value;
+          renderAll();
+        });
+        document.querySelector("#categoryFilter").addEventListener("change", event => {
+          allFilter.category = event.target.value;
+          renderAll();
+        });
+        document.querySelector("#statusFilter").addEventListener("change", event => {
+          allFilter.status = event.target.value;
+          renderAll();
+        });
+      }
+
+      function renderRepeat() {
+        el.appView.innerHTML = `
+          <div class="split-panel">
+            <section class="panel">
+              <div class="panel-header">
+                <h3 class="panel-title">รายการซ้ำ</h3>
+                <button class="ghost-button" type="button" data-action="run-repeats">${icons.repeat}สร้างรอบวันนี้</button>
+              </div>
+              <div class="repeat-list">
+                ${state.repeats.filter(item => !item.deleted).length ? state.repeats.filter(item => !item.deleted).sort((a, b) => String(a.nextDate).localeCompare(String(b.nextDate))).map(renderRepeatItem).join("") : renderEmptyBlock("ยังไม่มีรายการซ้ำ")}
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-header">
+                <h3 class="panel-title">เพิ่มรายการซ้ำ</h3>
+              </div>
+              <div class="panel-pad">
+                <form class="section-stack" id="repeatForm">
+                  <label class="form-field">
+                    <span class="label">รายการ</span>
+                    <input class="field" id="repeatTitle" required maxlength="160" placeholder="เช่น ออกกำลังกาย">
+                  </label>
+                  <div class="form-grid">
+                    <label class="form-field">
+                      <span class="label">รอบ</span>
+                      <select class="select" id="repeatFrequency">
+                        <option value="daily">ทุกวัน</option>
+                        <option value="weekly">ทุกสัปดาห์</option>
+                        <option value="monthly">ทุกเดือน</option>
+                      </select>
+                    </label>
+                    <label class="form-field">
+                      <span class="label">เริ่มวัน</span>
+                      <input class="field" id="repeatNextDate" type="date" value="${todayISO()}">
+                    </label>
+                    <label class="form-field">
+                      <span class="label">หมวด</span>
+                      <select class="select" id="repeatCategory">
+                        ${state.categories.map(cat => `<option value="${escapeAttr(cat)}">${escapeHtml(cat)}</option>`).join("")}
+                      </select>
+                    </label>
+                    <label class="form-field">
+                      <span class="label">ความสำคัญ</span>
+                      <select class="select" id="repeatPriority">
+                        <option value="normal">ปกติ</option>
+                        <option value="important">สำคัญ</option>
+                      </select>
+                    </label>
+                  </div>
+                  <button class="primary-button" type="submit">${icons.plus}บันทึกรายการซ้ำ</button>
+                </form>
+              </div>
+            </section>
+          </div>
+        `;
+        bindCommonActions();
+        document.querySelector("#repeatForm").addEventListener("submit", event => {
+          event.preventDefault();
+          const repeat = {
+            id: id(),
+            title: document.querySelector("#repeatTitle").value.trim(),
+            frequency: document.querySelector("#repeatFrequency").value,
+            nextDate: document.querySelector("#repeatNextDate").value || todayISO(),
+            category: document.querySelector("#repeatCategory").value,
+            priority: document.querySelector("#repeatPriority").value,
+            active: true,
+            createdAt: now(),
+            updatedAt: now()
+          };
+          if (!repeat.title) return;
+          state.repeats.push(repeat);
+          rememberPhrase(repeat.title);
+          touchState();
+          toast("เพิ่มรายการซ้ำแล้ว");
+          render();
+        });
+      }
+
+      function renderSettings() {
+        const backupText = JSON.stringify(exportPayload(), null, 2);
+        const syncCode = settings.syncCode || generateSyncCode();
+        el.appView.innerHTML = `
+          <div class="split-panel">
+            <section class="panel">
+              <div class="panel-header">
+                <h3 class="panel-title">Cloud Sync</h3>
+                <span class="tag ${hasSyncConfig() ? "is-today" : ""}">${hasSyncConfig() ? "พร้อม sync" : "ยังไม่ตั้งค่า"}</span>
+              </div>
+              <div class="settings-list">
+                <div class="settings-block">
+                  <div class="form-grid">
+                    <label class="form-field full">
+                      <span class="label">Firebase Realtime Database URL</span>
+                      <input class="field" id="syncUrlInput" value="${escapeAttr(settings.syncUrl || "")}" placeholder="https://your-project.firebasedatabase.app">
+                    </label>
+                    <label class="form-field">
+                      <span class="label">Sync Code</span>
+                      <input class="field" id="syncCodeInput" value="${escapeAttr(syncCode)}" autocomplete="off">
+                    </label>
+                    <label class="form-field">
+                      <span class="label">ชื่อเครื่อง</span>
+                      <input class="field" id="deviceNameInput" value="${escapeAttr(settings.deviceName || "")}" placeholder="มือถือ / โน้ตบุ๊ก">
+                    </label>
+                  </div>
+                  <div class="filter-bar">
+                    <button class="primary-button" type="button" data-action="save-sync">บันทึก Sync</button>
+                    <button class="ghost-button" type="button" data-action="generate-code">สร้าง Code ใหม่</button>
+                    <button class="ghost-button" type="button" data-action="pull-sync">ดึงข้อมูล</button>
+                    <button class="ghost-button" type="button" data-action="push-sync">ส่งข้อมูล</button>
+                  </div>
+                  <div class="status-line">
+                    <span class="sync-dot ${hasSyncConfig() ? "is-online" : ""}"></span>
+                    <span>${escapeHtml(syncStatusText())}</span>
+                  </div>
+                </div>
+                <div class="settings-block">
+                  <h3>Firebase Rules</h3>
+                  <pre class="code-box">{
+  "rules": {
+    "spaces": {
+      "$code": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}</pre>
+                </div>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-header">
+                <h3 class="panel-title">Backup</h3>
+              </div>
+              <div class="settings-list">
+                <div class="settings-block">
+                  <div class="filter-bar">
+                    <button class="ghost-button" type="button" data-action="export-backup">${icons.download}Export JSON</button>
+                    <button class="ghost-button" type="button" data-action="import-backup">${icons.upload}Import JSON</button>
+                    <button class="danger-button" type="button" data-action="clear-done">ลบงานที่เสร็จแล้ว</button>
+                  </div>
+                  <textarea class="textarea" readonly id="backupPreview">${escapeHtml(backupText)}</textarea>
+                </div>
+                <div class="settings-block">
+                  <h3>ข้อมูลในเครื่อง</h3>
+                  <p>${state.tasks.filter(t => !t.deleted).length} งาน · ${state.repeats.filter(r => !r.deleted).length} รายการซ้ำ · อัปเดต ${formatDateTime(state.updatedAt)}</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        `;
+        bindCommonActions();
+      }
+
+      function renderSummaryGrid() {
+        const summary = getSummary();
+        return `
+          <div class="summary-grid" aria-label="สรุปงาน">
+            <div class="summary-item"><strong>${summary.today}</strong><span>วันนี้</span></div>
+            <div class="summary-item"><strong>${summary.overdue}</strong><span>ค้างอยู่</span></div>
+            <div class="summary-item"><strong>${summary.inbox}</strong><span>Inbox</span></div>
+            <div class="summary-item"><strong>${summary.important}</strong><span>สำคัญ</span></div>
+          </div>
+        `;
+      }
+
+      function renderQuickCapture() {
+        return `
+          <section class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title">เพิ่มด่วน</h3>
+            </div>
+            <div class="panel-pad quick-capture">
+              <div class="quick-row">
+                <input class="field" id="quickTitle" list="phraseList" maxlength="160" placeholder="พิมพ์สิ่งที่นึกได้">
+                <button class="primary-button" type="button" id="quickAdd">${icons.plus}เพิ่ม</button>
+              </div>
+              <div class="chip-row" aria-label="เลือกวัน">
+                ${quickDueChip("today", "วันนี้")}
+                ${quickDueChip("tomorrow", "พรุ่งนี้")}
+                ${quickDueChip("week", "สัปดาห์นี้")}
+                ${quickDueChip("none", "ไม่ระบุ")}
+              </div>
+              <div class="form-grid">
+                <label class="form-field">
+                  <span class="label">หมวด</span>
+                  <select class="select" id="quickCategory">
+                    ${state.categories.map(cat => `<option value="${escapeAttr(cat)}" ${selectedQuickCategory === cat ? "selected" : ""}>${escapeHtml(cat)}</option>`).join("")}
+                  </select>
+                </label>
+                <label class="form-field">
+                  <span class="label">ความสำคัญ</span>
+                  <select class="select" id="quickPriority">
+                    <option value="normal" ${selectedQuickPriority === "normal" ? "selected" : ""}>ปกติ</option>
+                    <option value="important" ${selectedQuickPriority === "important" ? "selected" : ""}>สำคัญ</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </section>
+        `;
+      }
+
+      function renderUpcomingPanel() {
+        const upcoming = getOpenTasks()
+          .filter(task => task.dueDate && task.dueDate > todayISO())
+          .sort(taskSorter)
+          .slice(0, 5);
+        return `
+          <section class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title">ถัดไป</h3>
+            </div>
+            ${renderTaskList(upcoming, "ยังไม่มีงานวันถัดไป", true)}
+          </section>
+        `;
+      }
+
+      function quickDueChip(value, label) {
+        return `<button class="chip ${selectedQuickDue === value ? "is-active" : ""}" type="button" data-quick-due="${value}">${escapeHtml(label)}</button>`;
+      }
+
+      function renderTaskList(tasks, emptyText, compact = false) {
+        const visible = tasks.filter(task => !task.deleted);
+        if (!visible.length) {
+          return `<div class="empty-state"><div><strong>${escapeHtml(emptyText)}</strong><span>เพิ่มรายการได้ทันทีเมื่อมีเรื่องต้องจำ</span></div></div>`;
+        }
+        return `<div class="task-list ${compact ? "is-compact" : ""}">${visible.map(renderTaskCard).join("")}</div>`;
+      }
+
+      function renderTaskCard(task) {
+        const overdue = isOverdue(task);
+        const done = task.status === "done";
+        return `
+          <article class="task-card ${task.priority === "important" ? "is-important" : ""} ${overdue ? "is-overdue" : ""} ${done ? "is-done" : ""}" data-task-id="${escapeAttr(task.id)}">
+            <div class="task-main">
+              <button class="check-button ${done ? "is-done" : ""}" type="button" data-action="toggle-task" data-id="${escapeAttr(task.id)}" aria-label="${done ? "ยกเลิกเสร็จ" : "ติ๊กเสร็จ"}">${icons.check}</button>
+              <div>
+                <h3 class="task-title">${escapeHtml(task.title)}</h3>
+                <div class="task-meta">
+                  ${renderDueTag(task)}
+                  <span class="tag">${escapeHtml(task.category || "อื่น ๆ")}</span>
+                  ${task.priority === "important" ? '<span class="tag is-important">สำคัญ</span>' : ""}
+                </div>
+              </div>
+              <button class="icon-button" type="button" data-action="edit-task" data-id="${escapeAttr(task.id)}" aria-label="แก้ไขงาน">${icons.edit}</button>
+            </div>
+            ${task.notes ? `<p class="task-notes">${escapeHtml(task.notes)}</p>` : ""}
+            <div class="task-actions">
+              ${!done ? `<button class="mini-button" type="button" data-action="date-task" data-date="today" data-id="${escapeAttr(task.id)}">วันนี้</button>` : ""}
+              ${!done ? `<button class="mini-button" type="button" data-action="date-task" data-date="tomorrow" data-id="${escapeAttr(task.id)}">พรุ่งนี้</button>` : ""}
+              ${!done ? `<button class="mini-button" type="button" data-action="date-task" data-date="week" data-id="${escapeAttr(task.id)}">สัปดาห์นี้</button>` : ""}
+              <button class="mini-button" type="button" data-action="delete-task" data-id="${escapeAttr(task.id)}">${icons.trash}ลบ</button>
+            </div>
+          </article>
+        `;
+      }
+
+      function renderDueTag(task) {
+        if (!task.dueDate) return '<span class="tag">ไม่ระบุวัน</span>';
+        if (isOverdue(task)) return `<span class="tag is-overdue">ค้าง ${formatShortDate(task.dueDate)}</span>`;
+        if (task.dueDate === todayISO()) return '<span class="tag is-today">วันนี้</span>';
+        if (task.dueDate === addDaysISO(1)) return '<span class="tag is-important">พรุ่งนี้</span>';
+        return `<span class="tag">${formatShortDate(task.dueDate)}</span>`;
+      }
+
+      function renderRepeatItem(item) {
+        return `
+          <article class="repeat-item" data-repeat-id="${escapeAttr(item.id)}">
+            <div class="task-main">
+              <div class="check-button ${item.active ? "is-done" : ""}" aria-hidden="true">${icons.check}</div>
+              <div>
+                <h3>${escapeHtml(item.title)}</h3>
+                <p>${repeatLabel(item.frequency)} · รอบถัดไป ${formatShortDate(item.nextDate)} · ${escapeHtml(item.category)}</p>
+              </div>
+              <button class="icon-button" type="button" data-action="toggle-repeat" data-id="${escapeAttr(item.id)}" aria-label="${item.active ? "ปิดรายการซ้ำ" : "เปิดรายการซ้ำ"}">${icons.repeat}</button>
+            </div>
+            <div class="task-actions">
+              <button class="mini-button" type="button" data-action="repeat-now" data-id="${escapeAttr(item.id)}">สร้างวันนี้</button>
+              <button class="mini-button" type="button" data-action="delete-repeat" data-id="${escapeAttr(item.id)}">${icons.trash}ลบ</button>
+            </div>
+          </article>
+        `;
+      }
+
+      function renderEmptyBlock(text) {
+        return `<div class="empty-state"><div><strong>${escapeHtml(text)}</strong><span>เพิ่มรายการใหม่จากฟอร์มด้านข้าง</span></div></div>`;
+      }
+
+      function bindQuickCapture() {
+        const input = document.querySelector("#quickTitle");
+        const addButton = document.querySelector("#quickAdd");
+        const category = document.querySelector("#quickCategory");
+        const priority = document.querySelector("#quickPriority");
+        if (!input || !addButton) return;
+        addButton.addEventListener("click", addQuickTask);
+        input.addEventListener("keydown", event => {
+          if (event.key === "Enter") addQuickTask();
+        });
+        category.addEventListener("change", event => {
+          selectedQuickCategory = event.target.value;
+        });
+        priority.addEventListener("change", event => {
+          selectedQuickPriority = event.target.value;
+        });
+        document.querySelectorAll("[data-quick-due]").forEach(button => {
+          button.addEventListener("click", () => {
+            selectedQuickDue = button.dataset.quickDue;
+            document.querySelectorAll("[data-quick-due]").forEach(item => item.classList.toggle("is-active", item === button));
+          });
+        });
+      }
+
+      function bindCommonActions() {
+        document.querySelectorAll("[data-action]").forEach(button => {
+          button.addEventListener("click", () => handleAction(button));
+        });
+      }
+
+      function handleAction(target) {
+        const action = target.dataset.action;
+        const idValue = target.dataset.id;
+        if (action === "new-task") openTaskDialog();
+        if (action === "toggle-task") toggleTask(idValue);
+        if (action === "edit-task") openTaskDialog(findTask(idValue));
+        if (action === "delete-task") deleteTask(idValue);
+        if (action === "date-task") setTaskDate(idValue, target.dataset.date);
+        if (action === "move-overdue-today") moveOverdueToToday();
+        if (action === "run-repeats") {
+          ensureRepeats(true);
+          render();
+        }
+        if (action === "toggle-repeat") toggleRepeat(idValue);
+        if (action === "repeat-now") createTaskFromRepeat(findRepeat(idValue), todayISO(), true);
+        if (action === "delete-repeat") deleteRepeat(idValue);
+        if (action === "save-sync") saveSyncSettingsFromForm();
+        if (action === "generate-code") generateCodeIntoForm();
+        if (action === "pull-sync") pullFromCloud({ silent: false });
+        if (action === "push-sync") pushToCloud({ silent: false });
+        if (action === "export-backup") exportBackupFile();
+        if (action === "import-backup") el.importFile.click();
+        if (action === "clear-done") clearDoneTasks();
+      }
+
+      function addQuickTask() {
+        const input = document.querySelector("#quickTitle");
+        if (!input) return;
+        const raw = input.value.trim();
+        if (!raw) return;
+        const parsed = parseQuickTask(raw);
+        const dueChoice = parsed.dueChoice || selectedQuickDue;
+        const task = {
+          id: id(),
+          title: parsed.title,
+          notes: "",
+          category: parsed.category || selectedQuickCategory || "อื่น ๆ",
+          dueDate: resolveDueChoice(dueChoice),
+          priority: parsed.priority || selectedQuickPriority || "normal",
+          status: "open",
+          createdAt: now(),
+          updatedAt: now(),
+          completedAt: null
+        };
+        state.tasks.push(task);
+        rememberPhrase(task.title);
+        input.value = "";
+        touchState();
+        toast("เพิ่มงานแล้ว");
+        render();
+      }
+
+      function parseQuickTask(raw) {
+        let text = raw.replace(/\s+/g, " ").trim();
+        let dueChoice = "";
+        if (/(พรุ่งนี้|tomorrow)/i.test(text)) dueChoice = "tomorrow";
+        if (/(วันนี้|คืนนี้|today)/i.test(text)) dueChoice = "today";
+        if (/(สัปดาห์นี้|อาทิตย์นี้|week)/i.test(text)) dueChoice = "week";
+        if (/(ไม่ระบุ|ไว้ก่อน|inbox)/i.test(text)) dueChoice = "none";
+        text = text
+          .replace(/(พรุ่งนี้|วันนี้|คืนนี้|สัปดาห์นี้|อาทิตย์นี้|ไม่ระบุ|ไว้ก่อน|tomorrow|today|week|inbox)/gi, "")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        const priority = /(ด่วน|สำคัญ|ห้ามลืม|urgent|important)/i.test(raw) ? "important" : "";
+        let category = "";
+        const hay = raw.toLowerCase();
+        if (/(ซื้อ|สั่ง|ช้อป|สายชาร์จ|ของ)/.test(hay)) category = "ซื้อของ";
+        if (/(เงิน|บิล|มัดจำ|โอน|จ่าย|ภาษี|บัญชี)/.test(hay)) category = "การเงิน";
+        if (/(ผู้รับเหมา|บ้าน|ซ่อม|ช่าง|ห้อง|คอนโด)/.test(hay)) category = "บ้าน";
+        if (/(ลูกค้า|งาน|ประชุม|เอกสาร|บริษัท|โปรเจกต์)/.test(hay)) category = "งาน";
+        if (/(ออกกำลัง|ฟิตเนส|วิ่ง|เดิน|ยิม)/.test(hay)) category = "ออกกำลังกาย";
+        if (/(หมอ|ยา|สุขภาพ|นอน|ตรวจ)/.test(hay)) category = "สุขภาพ";
+        if (/(ไอเดีย|คิด|ลอง|อยากทำ)/.test(hay)) category = "ไอเดีย";
+        return {
+          title: text || raw,
+          dueChoice,
+          priority,
+          category
+        };
+      }
+
+      function openTaskDialog(task = null) {
+        renderCategoryOptions();
+        el.taskForm.reset();
+        if (task) {
+          el.taskDialogTitle.textContent = "แก้ไขงาน";
+          el.taskId.value = task.id;
+          el.taskTitle.value = task.title;
+          el.taskDueDate.value = task.dueDate || "";
+          el.taskCategory.value = task.category || "อื่น ๆ";
+          el.taskPriority.value = task.priority || "normal";
+          el.taskStatus.value = task.status || "open";
+          el.taskNotes.value = task.notes || "";
+        } else {
+          el.taskDialogTitle.textContent = "เพิ่มงาน";
+          el.taskId.value = "";
+          el.taskTitle.value = "";
+          el.taskDueDate.value = resolveDueChoice(selectedQuickDue) || "";
+          el.taskCategory.value = selectedQuickCategory || "งาน";
+          el.taskPriority.value = selectedQuickPriority || "normal";
+          el.taskStatus.value = "open";
+          el.taskNotes.value = "";
+        }
+        if (typeof el.taskDialog.showModal === "function") {
+          el.taskDialog.showModal();
+        } else {
+          alert("Browser นี้ไม่รองรับ dialog");
+        }
+        setTimeout(() => el.taskTitle.focus(), 50);
+      }
+
+      function saveTaskFromDialog(event) {
+        event.preventDefault();
+        const existing = findTask(el.taskId.value);
+        const values = {
+          title: el.taskTitle.value.trim(),
+          dueDate: el.taskDueDate.value || null,
+          category: el.taskCategory.value,
+          priority: el.taskPriority.value,
+          status: el.taskStatus.value,
+          notes: el.taskNotes.value.trim(),
+          updatedAt: now()
+        };
+        if (!values.title) return;
+        if (existing) {
+          const wasOpen = existing.status !== "done";
+          Object.assign(existing, values);
+          if (values.status === "done" && wasOpen) existing.completedAt = now();
+          if (values.status !== "done") existing.completedAt = null;
+        } else {
+          state.tasks.push({
+            id: id(),
+            ...values,
+            createdAt: now(),
+            completedAt: values.status === "done" ? now() : null
+          });
+        }
+        rememberPhrase(values.title);
+        touchState();
+        el.taskDialog.close();
+        toast("บันทึกแล้ว");
+        render();
+      }
+
+      function toggleTask(taskId) {
+        const task = findTask(taskId);
+        if (!task) return;
+        task.status = task.status === "done" ? "open" : "done";
+        task.completedAt = task.status === "done" ? now() : null;
+        task.updatedAt = now();
+        touchState();
+        render();
+      }
+
+      function deleteTask(taskId) {
+        const task = findTask(taskId);
+        if (!task) return;
+        task.deleted = true;
+        task.updatedAt = now();
+        touchState();
+        toast("ลบงานแล้ว");
+        render();
+      }
+
+      function setTaskDate(taskId, dateChoice) {
+        const task = findTask(taskId);
+        if (!task) return;
+        task.dueDate = resolveDueChoice(dateChoice);
+        task.updatedAt = now();
+        touchState();
+        render();
+      }
+
+      function moveOverdueToToday() {
+        const today = todayISO();
+        let count = 0;
+        state.tasks.forEach(task => {
+          if (!task.deleted && task.status !== "done" && isOverdue(task)) {
+            task.dueDate = today;
+            task.updatedAt = now();
+            count += 1;
+          }
+        });
+        if (count) {
+          touchState();
+          toast(`ย้าย ${count} รายการมาวันนี้`);
+          render();
+        } else {
+          toast("ไม่มีงานค้างให้ย้าย");
+        }
+      }
+
+      function toggleRepeat(repeatId) {
+        const repeat = findRepeat(repeatId);
+        if (!repeat) return;
+        repeat.active = !repeat.active;
+        repeat.updatedAt = now();
+        touchState();
+        render();
+      }
+
+      function deleteRepeat(repeatId) {
+        const repeat = findRepeat(repeatId);
+        if (!repeat) return;
+        repeat.deleted = true;
+        repeat.updatedAt = now();
+        touchState();
+        render();
+      }
+
+      function createTaskFromRepeat(repeat, dueDate, manual = false) {
+        if (!repeat || repeat.deleted || !repeat.active) return false;
+        const exists = state.tasks.some(task => !task.deleted && task.sourceRepeatId === repeat.id && task.sourceRepeatDate === dueDate);
+        if (exists && !manual) return false;
+        state.tasks.push({
+          id: id(),
+          title: repeat.title,
+          notes: "",
+          category: repeat.category || "อื่น ๆ",
+          dueDate,
+          priority: repeat.priority || "normal",
+          status: "open",
+          sourceRepeatId: repeat.id,
+          sourceRepeatDate: dueDate,
+          createdAt: now(),
+          updatedAt: now(),
+          completedAt: null
+        });
+        repeat.nextDate = nextRepeatDate(repeat.nextDate || dueDate, repeat.frequency);
+        repeat.updatedAt = now();
+        touchState();
+        if (manual) {
+          toast("สร้างงานจากรายการซ้ำแล้ว");
+          render();
+        }
+        return true;
+      }
+
+      function ensureRepeats(showToast = false) {
+        let count = 0;
+        const today = todayISO();
+        state.repeats.filter(item => !item.deleted && item.active).forEach(item => {
+          let guard = 0;
+          while (item.nextDate && item.nextDate <= today && guard < 12) {
+            if (createTaskFromRepeat(item, item.nextDate, false)) count += 1;
+            else {
+              item.nextDate = nextRepeatDate(item.nextDate, item.frequency);
+              item.updatedAt = now();
+            }
+            guard += 1;
+          }
+        });
+        if (count) {
+          saveState();
+          if (showToast) toast(`สร้างงานซ้ำ ${count} รายการ`);
+        } else if (showToast) {
+          toast("ไม่มีรอบใหม่วันนี้");
+        }
+      }
+
+      function saveSyncSettingsFromForm() {
+        const url = document.querySelector("#syncUrlInput").value.trim();
+        const syncCode = document.querySelector("#syncCodeInput").value.trim() || generateSyncCode();
+        const deviceName = document.querySelector("#deviceNameInput").value.trim() || defaultDeviceName();
+        settings.syncUrl = normalizeDbUrl(url);
+        settings.syncCode = syncCode;
+        settings.deviceName = deviceName;
+        saveSettings();
+        toast("บันทึกค่า sync แล้ว");
+        render();
+        if (hasSyncConfig()) pullFromCloud({ silent: false });
+      }
+
+      function generateCodeIntoForm() {
+        const input = document.querySelector("#syncCodeInput");
+        input.value = generateSyncCode();
+        input.focus();
+      }
+
+      async function pullFromCloud({ silent }) {
+        if (!hasSyncConfig()) {
+          if (!silent) toast("ใส่ Firebase URL และ Sync Code ก่อน");
+          updateSyncStatus();
+          return;
+        }
+        if (syncBusy) return;
+        syncBusy = true;
+        updateSyncStatus("busy", "Syncing");
+        try {
+          const res = await fetch(syncEndpoint(), { method: "GET", cache: "no-store" });
+          if (!res.ok) throw new Error(`GET ${res.status}`);
+          const remote = await res.json();
+          if (!remote) {
+            await writeCloudPayload();
+            settings.lastSyncAt = now();
+            settings.lastSyncDirection = "push";
+            saveSettings();
+            if (!silent) toast("สร้างพื้นที่ sync แล้ว");
+            updateSyncStatus("online", "Synced");
+            return;
+          }
+          const merged = mergeRemoteState(state, remote.data || remote);
+          state = ensureState(merged);
+          state.updatedAt = now();
+          saveState(false);
+          settings.lastSyncAt = now();
+          settings.lastSyncDirection = "pull";
+          saveSettings();
+          await writeCloudPayload();
+          render();
+          if (!silent) toast("ดึงข้อมูลแล้ว");
+          updateSyncStatus("online", "Synced");
+        } catch (error) {
+          console.error(error);
+          if (!silent) toast("Sync ไม่สำเร็จ");
+          updateSyncStatus("error", "Sync error");
+        } finally {
+          syncBusy = false;
+        }
+      }
+
+      async function pushToCloud({ silent }) {
+        if (!hasSyncConfig()) {
+          if (!silent) toast("ใส่ Firebase URL และ Sync Code ก่อน");
+          updateSyncStatus();
+          return;
+        }
+        if (syncBusy) return;
+        syncBusy = true;
+        updateSyncStatus("busy", "Syncing");
+        try {
+          await writeCloudPayload();
+          settings.lastSyncAt = now();
+          settings.lastSyncDirection = "push";
+          saveSettings();
+          if (!silent) toast("ส่งข้อมูลขึ้น cloud แล้ว");
+          updateSyncStatus("online", "Synced");
+        } catch (error) {
+          console.error(error);
+          if (!silent) toast("ส่งข้อมูลไม่สำเร็จ");
+          updateSyncStatus("error", "Sync error");
+        } finally {
+          syncBusy = false;
+        }
+      }
+
+      async function writeCloudPayload() {
+        const payload = {
+          app: "jamwaikorn",
+          version: 1,
+          syncCode: settings.syncCode,
+          updatedAt: now(),
+          updatedBy: settings.deviceId,
+          deviceName: settings.deviceName,
+          data: sanitizeState(state)
+        };
+        const res = await fetch(syncEndpoint(), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`PUT ${res.status}`);
+      }
+
+      function queueSync() {
+        if (!hasSyncConfig()) {
+          updateSyncStatus();
+          return;
+        }
+        clearTimeout(pendingSync);
+        pendingSync = setTimeout(() => pushToCloud({ silent: true }), 1200);
+      }
+
+      function startAutoSync() {
+        clearInterval(syncTimer);
+        syncTimer = setInterval(() => {
+          if (hasSyncConfig() && !document.hidden && navigator.onLine !== false) {
+            pullFromCloud({ silent: true });
+          }
+        }, SYNC_INTERVAL_MS);
+      }
+
+      function mergeRemoteState(localState, remoteState) {
+        const local = ensureState(localState);
+        const remote = ensureState(remoteState);
+        return {
+          ...local,
+          tasks: mergeByUpdatedAt(local.tasks, remote.tasks),
+          repeats: mergeByUpdatedAt(local.repeats, remote.repeats),
+          categories: Array.from(new Set([...local.categories, ...remote.categories, ...DEFAULT_CATEGORIES])),
+          recentPhrases: Array.from(new Set([...(remote.recentPhrases || []), ...(local.recentPhrases || [])])).slice(0, 60),
+          updatedAt: maxDate(local.updatedAt, remote.updatedAt)
+        };
+      }
+
+      function mergeByUpdatedAt(localItems, remoteItems) {
+        const map = new Map();
+        [...(localItems || []), ...(remoteItems || [])].forEach(item => {
+          if (!item || !item.id) return;
+          const old = map.get(item.id);
+          if (!old || String(item.updatedAt || "") >= String(old.updatedAt || "")) {
+            map.set(item.id, item);
+          }
+        });
+        return Array.from(map.values());
+      }
+
+      function exportBackupFile() {
+        const blob = new Blob([JSON.stringify(exportPayload(), null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `jamwaikorn-backup-${todayISO()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function importBackupFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(String(reader.result));
+            if (!parsed.state && !parsed.tasks) throw new Error("Invalid backup");
+            state = ensureState(parsed.state || parsed);
+            state.updatedAt = now();
+            saveState();
+            toast("Import สำเร็จ");
+            render();
+          } catch (error) {
+            console.error(error);
+            toast("ไฟล์ backup ไม่ถูกต้อง");
+          } finally {
+            event.target.value = "";
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      function clearDoneTasks() {
+        const done = state.tasks.filter(task => !task.deleted && task.status === "done");
+        if (!done.length) {
+          toast("ยังไม่มีงานเสร็จแล้วให้ลบ");
+          return;
+        }
+        if (!confirm(`ลบงานที่เสร็จแล้ว ${done.length} รายการ?`)) return;
+        done.forEach(task => {
+          task.deleted = true;
+          task.updatedAt = now();
+        });
+        touchState();
+        toast("ลบงานที่เสร็จแล้ว");
+        render();
+      }
+
+      function filterAllTasks() {
+        const q = allFilter.q.trim().toLowerCase();
+        return state.tasks
+          .filter(task => !task.deleted)
+          .filter(task => allFilter.status === "all" || task.status === allFilter.status)
+          .filter(task => allFilter.category === "all" || task.category === allFilter.category)
+          .filter(task => !q || `${task.title} ${task.notes || ""} ${task.category || ""}`.toLowerCase().includes(q))
+          .sort(taskSorter);
+      }
+
+      function getOpenTasks() {
+        return state.tasks.filter(task => !task.deleted && task.status !== "done");
+      }
+
+      function getSummary() {
+        const open = getOpenTasks();
+        return {
+          today: open.filter(task => task.dueDate === todayISO()).length,
+          overdue: open.filter(isOverdue).length,
+          inbox: open.filter(task => !task.dueDate).length,
+          important: open.filter(task => task.priority === "important").length
+        };
+      }
+
+      function taskSorter(a, b) {
+        if (a.status !== b.status) return a.status === "open" ? -1 : 1;
+        if (isOverdue(a) !== isOverdue(b)) return isOverdue(a) ? -1 : 1;
+        if ((a.priority === "important") !== (b.priority === "important")) return a.priority === "important" ? -1 : 1;
+        return String(a.dueDate || "9999-12-31").localeCompare(String(b.dueDate || "9999-12-31")) || String(b.createdAt).localeCompare(String(a.createdAt));
+      }
+
+      function findTask(taskId) {
+        return state.tasks.find(task => task.id === taskId);
+      }
+
+      function findRepeat(repeatId) {
+        return state.repeats.find(item => item.id === repeatId);
+      }
+
+      function isOverdue(task) {
+        return task.status !== "done" && task.dueDate && task.dueDate < todayISO();
+      }
+
+      function resolveDueChoice(choice) {
+        if (choice === "today") return todayISO();
+        if (choice === "tomorrow") return addDaysISO(1);
+        if (choice === "week") return addDaysISO(7);
+        if (choice === "none") return null;
+        return todayISO();
+      }
+
+      function smartDefaultDue() {
+        return new Date().getHours() >= 18 ? "tomorrow" : "today";
+      }
+
+      function nextRepeatDate(date, frequency) {
+        const d = parseISODate(date || todayISO());
+        if (frequency === "weekly") d.setDate(d.getDate() + 7);
+        else if (frequency === "monthly") d.setMonth(d.getMonth() + 1);
+        else d.setDate(d.getDate() + 1);
+        return toISODate(d);
+      }
+
+      function repeatLabel(frequency) {
+        if (frequency === "weekly") return "ทุกสัปดาห์";
+        if (frequency === "monthly") return "ทุกเดือน";
+        return "ทุกวัน";
+      }
+
+      function rememberPhrase(title) {
+        const clean = title.trim();
+        if (!clean) return;
+        state.recentPhrases = [clean, ...state.recentPhrases.filter(item => item !== clean)].slice(0, 60);
+      }
+
+      function renderDatalist() {
+        el.phraseList.innerHTML = state.recentPhrases.map(phrase => `<option value="${escapeAttr(phrase)}"></option>`).join("");
+      }
+
+      function renderCategoryOptions() {
+        el.taskCategory.innerHTML = state.categories.map(cat => `<option value="${escapeAttr(cat)}">${escapeHtml(cat)}</option>`).join("");
+      }
+
+      function touchState() {
+        state.updatedAt = now();
+        saveState();
+        queueSync();
+      }
+
+      function saveState(shouldQueueSync = false) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizeState(state)));
+        if (shouldQueueSync) queueSync();
+      }
+
+      function saveSettings() {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      }
+
+      function loadState() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+          return ensureState(saved);
+        } catch {
+          return ensureState(null);
+        }
+      }
+
+      function loadSettings() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null");
+          return ensureSettings(saved);
+        } catch {
+          return ensureSettings(null);
+        }
+      }
+
+      function ensureState(value) {
+        const base = value && typeof value === "object" ? value : {};
+        return {
+          version: 1,
+          tasks: Array.isArray(base.tasks) ? base.tasks : [],
+          repeats: Array.isArray(base.repeats) ? base.repeats : [],
+          categories: Array.from(new Set([...(Array.isArray(base.categories) ? base.categories : []), ...DEFAULT_CATEGORIES])),
+          recentPhrases: Array.isArray(base.recentPhrases) ? base.recentPhrases : [],
+          updatedAt: base.updatedAt || now()
+        };
+      }
+
+      function ensureSettings(value) {
+        const base = value && typeof value === "object" ? value : {};
+        return {
+          syncUrl: base.syncUrl || "",
+          syncCode: base.syncCode || generateSyncCode(),
+          deviceId: base.deviceId || id(),
+          deviceName: base.deviceName || defaultDeviceName(),
+          lastSyncAt: base.lastSyncAt || "",
+          lastSyncDirection: base.lastSyncDirection || ""
+        };
+      }
+
+      function sanitizeState(value) {
+        const clean = ensureState(value);
+        return {
+          version: 1,
+          tasks: clean.tasks,
+          repeats: clean.repeats,
+          categories: clean.categories,
+          recentPhrases: clean.recentPhrases,
+          updatedAt: clean.updatedAt
+        };
+      }
+
+      function exportPayload() {
+        return {
+          app: "จำไว้ก่อน",
+          exportedAt: now(),
+          state: sanitizeState(state)
+        };
+      }
+
+      function hasSyncConfig() {
+        return Boolean(settings.syncUrl && settings.syncCode);
+      }
+
+      function syncEndpoint() {
+        const code = encodeURIComponent(settings.syncCode.replace(/[.#$\[\]/]/g, "-"));
+        return `${normalizeDbUrl(settings.syncUrl)}/spaces/${code}.json`;
+      }
+
+      function normalizeDbUrl(url) {
+        return String(url || "").trim().replace(/\/+$/, "").replace(/\.json$/, "");
+      }
+
+      function syncStatusText() {
+        if (!navigator.onLine) return "Offline";
+        if (!hasSyncConfig()) return "Local only";
+        if (!settings.lastSyncAt) return "พร้อมเริ่ม sync";
+        return `${settings.lastSyncDirection === "push" ? "ส่งล่าสุด" : "ดึงล่าสุด"} ${formatDateTime(settings.lastSyncAt)}`;
+      }
+
+      function updateSyncStatus(mode = "", text = "") {
+        const label = text || syncStatusText();
+        const dotClass = mode === "busy" ? "is-busy" : mode === "error" ? "is-error" : hasSyncConfig() && navigator.onLine !== false ? "is-online" : "";
+        el.desktopSyncDot.className = `sync-dot ${dotClass}`;
+        el.desktopSyncText.textContent = label;
+        el.syncNowButton.disabled = syncBusy;
+      }
+
+      function formatFullDate(iso) {
+        const d = parseISODate(iso);
+        return `วัน${THAI_DAYS[d.getDay()]} ${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`;
+      }
+
+      function formatShortDate(iso) {
+        if (!iso) return "ไม่ระบุ";
+        const d = parseISODate(iso);
+        return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]}`;
+      }
+
+      function formatDateTime(iso) {
+        if (!iso) return "-";
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return "-";
+        return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      }
+
+      function todayISO() {
+        return toISODate(new Date());
+      }
+
+      function addDaysISO(days) {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + days);
+        return toISODate(d);
+      }
+
+      function toISODate(date) {
+        const local = new Date(date);
+        local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
+        return local.toISOString().slice(0, 10);
+      }
+
+      function parseISODate(iso) {
+        const [year, month, day] = String(iso).split("-").map(Number);
+        return new Date(year, month - 1, day);
+      }
+
+      function now() {
+        return new Date().toISOString();
+      }
+
+      function maxDate(a, b) {
+        return String(a || "") > String(b || "") ? a : b;
+      }
+
+      function id() {
+        if (crypto && crypto.randomUUID) return crypto.randomUUID();
+        return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      }
+
+      function generateSyncCode() {
+        const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        const part = length => Array.from({ length }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+        return `JW-${part(4)}-${part(4)}`;
+      }
+
+      function defaultDeviceName() {
+        const width = window.innerWidth;
+        if (width < 700) return "มือถือ";
+        if (width < 1024) return "แท็บเล็ต";
+        return "โน้ตบุ๊ก";
+      }
+
+      function toast(message) {
+        clearTimeout(toastTimer);
+        el.toast.textContent = message;
+        el.toast.classList.add("is-showing");
+        toastTimer = setTimeout(() => el.toast.classList.remove("is-showing"), 2600);
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function escapeAttr(value) {
+        return escapeHtml(value).replace(/`/g, "&#096;");
+      }
+    })();
+  </script>
+</body>
+</html>
