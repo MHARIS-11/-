@@ -698,6 +698,13 @@
       font-size: 11px;
     }
     .summary-row .sticky { font-weight: 800; text-align: right; }
+    .empty-row td {
+      height: 74px;
+      color: var(--muted);
+      background: var(--bg);
+      text-align: center;
+      font-weight: 800;
+    }
     .item-list {
       display: grid;
       gap: 10px;
@@ -708,6 +715,10 @@
       overflow: hidden;
       background: var(--bg);
     }
+    .item-card.is-disabled {
+      background: var(--surface);
+      opacity: 0.78;
+    }
     .item-card-head {
       padding: 10px 12px;
       background: var(--surface);
@@ -717,6 +728,21 @@
       gap: 8px;
       align-items: center;
       flex-wrap: wrap;
+    }
+    .check-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 34px;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    .check-row input {
+      width: auto;
+      min-height: auto;
+      accent-color: var(--primary);
     }
     .inline-list {
       display: flex;
@@ -1079,6 +1105,7 @@
           item.laborValue = n(item.laborValue);
           item.progressPct = n(item.progressPct);
         });
+        period.enabled = period.enabled !== false;
         if (period.periodValue === undefined || period.periodValue === null || period.periodValue === "") {
           period.periodValue = period.items.reduce((sum, item) => sum + n(item.laborValue), 0);
         } else {
@@ -1179,9 +1206,17 @@
       return view === "GI" ? ["G", "I"] : [view];
     }
 
+    function periodEnabled(period) {
+      return period?.enabled !== false;
+    }
+
+    function periodsForBuilding(building, activeOnly = true) {
+      return state.periods.filter((period) => period.building === building && (!activeOnly || periodEnabled(period)));
+    }
+
     function periodsForView(view) {
       const buildings = buildingsForView(view);
-      return state.periods.filter((period) => buildings.includes(period.building));
+      return state.periods.filter((period) => buildings.includes(period.building) && periodEnabled(period));
     }
 
     function getQuickEntry(view = state.ui.planView || "G") {
@@ -1189,7 +1224,7 @@
       const quick = state.ui.quickEntry;
       if (view !== "GI") quick.building = view;
       if (!["G", "I"].includes(quick.building)) quick.building = "G";
-      const buildingPeriods = state.periods.filter((period) => period.building === quick.building);
+      const buildingPeriods = periodsForBuilding(quick.building);
       if (!buildingPeriods.some((period) => period.id === quick.periodId)) quick.periodId = buildingPeriods[0]?.id || "";
       const period = getPeriod(quick.periodId);
       if (!period?.items.some((item) => item.id === quick.itemId)) quick.itemId = period?.items[0]?.id || "";
@@ -1304,11 +1339,12 @@
       state.periods.filter((period) => period.building === building).forEach((period) => {
         const mainNo = periodMainNo(period);
         const key = `${building}|${mainNo}`;
-        const summary = map.get(key) || { building, mainNo, mainValue: n(period.mainValue), subValue: 0, laborValue: 0, count: 0 };
+        const summary = map.get(key) || { building, mainNo, mainValue: n(period.mainValue), subValue: 0, laborValue: 0, count: 0, activeCount: 0 };
         summary.mainValue = n(period.mainValue) || summary.mainValue;
         summary.subValue += n(period.periodValue);
         summary.laborValue += periodLaborValue(period);
         summary.count++;
+        if (periodEnabled(period)) summary.activeCount++;
         map.set(key, summary);
       });
       return [...map.values()].sort((a, b) => naturalSort(a.mainNo, b.mainNo));
@@ -1480,9 +1516,9 @@
             <td class="num">${money(ratio * 100, 1)}%</td>
           </tr>
         `;
-      }).join("");
+      }).join("") || `<tr><td colspan="7" class="muted">ยังไม่ได้เลือกงวดงานสำหรับรอบนี้</td></tr>`;
       const updateDates = getDates().filter((date) => date <= state.settings.updateDate);
-      const topLabor = state.periods.flatMap((period) => period.items.map((item) => {
+      const topLabor = periodsForView("GI").flatMap((period) => period.items.map((item) => {
         const amount = updateDates.reduce((sum, date) => sum + itemLaborCost(item, date), 0);
         return { label: `หลัง ${period.building} งวด ${period.no} · ${item.name}`, amount };
       })).filter((row) => row.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, 5);
@@ -1566,7 +1602,7 @@
             <div class="dashboard-card">
               <div class="panel-head" style="padding:0;border:0">
                 <h2>ภาพรวมงวดงาน</h2>
-                <span class="pill">${state.periods.length} งวด</span>
+                <span class="pill">เลือกใช้ ${periodsForView("GI").length}/${state.periods.length} งวด</span>
               </div>
               <div class="table-wrap">
                 <table class="period-overview">
@@ -1621,7 +1657,8 @@
       const dates = getDates();
       const el = $("#tab-plan");
       const fillMode = state.ui.fillMode || "all";
-      const hasSelected = state.ui.selectedCell && getPeriod(state.ui.selectedCell.periodId);
+      const selectedPeriod = state.ui.selectedCell ? getPeriod(state.ui.selectedCell.periodId) : null;
+      const hasSelected = selectedPeriod && periodEnabled(selectedPeriod);
       el.innerHTML = `
         <div class="plan-shell">
           <div class="plan-toolbar">
@@ -1650,7 +1687,7 @@
     function renderQuickEntry(view) {
       const quick = getQuickEntry(view);
       const buildingOptions = ["G", "I"].map((building) => `<option value="${building}" ${quick.building === building ? "selected" : ""}>หลัง ${building}</option>`).join("");
-      const buildingPeriods = state.periods.filter((period) => period.building === quick.building);
+      const buildingPeriods = periodsForBuilding(quick.building);
       const period = getPeriod(quick.periodId) || buildingPeriods[0];
       const item = getItem(period, quick.itemId) || period?.items[0];
       const currentPlanned = item ? n(item.plan?.[quick.date]) : 0;
@@ -1726,42 +1763,48 @@
 
     function buildPlanTable(view, dates) {
       const editable = view !== "GI";
+      const activePeriods = periodsForView(view);
+      const totalCols = dates.length + 4;
       let body = "";
-      for (const building of buildingsForView(view)) {
-        const periods = state.periods.filter((period) => period.building === building);
-        body += `<tr class="building-row"><td class="sticky col-building" colspan="4">อาคาร ${building}</td>${dates.map((date) => `<td class="date-cell ${isHoliday(date) ? "holiday" : ""}"></td>`).join("")}</tr>`;
-        for (const period of periods) {
-          body += `<tr class="period-row"><td class="sticky col-building"></td><td class="sticky col-period">${esc(period.title)}</td><td class="sticky col-item" colspan="2">${esc(period.description)}</td>${dates.map((date) => `<td class="date-cell ${isHoliday(date) ? "holiday" : ""}"></td>`).join("")}</tr>`;
-          for (const item of period.items) {
-            body += `
-              <tr>
-                <td class="sticky col-building">${esc(period.building)}</td>
-                <td class="sticky col-period">งวด ${esc(period.no)}</td>
-                <td class="sticky col-item">${esc(item.name)} <span class="pill">${money(item.progressPct, 0)}%</span></td>
-                <td class="sticky col-value num">${money(item.laborValue, 0)}</td>
-                ${dates.map((date) => {
-                  const planned = n(item.plan?.[date]);
-                  const units = itemActualUnits(item, date);
-                  const cost = itemLaborCost(item, date);
-                  const workClass = units > 0 ? "actual" : "";
-                  const holidayClass = isHoliday(date) ? "holiday" : "";
-                  const selected = editable && cellMatches(state.ui.selectedCell, { periodId: period.id, itemId: item.id, date });
-                  const attrs = editable ? `data-action="edit-cell" data-period-id="${period.id}" data-item-id="${item.id}" data-date="${date}" title="คลิกเพื่อเลือก ดับเบิลคลิกเพื่อแก้ไข"` : "";
-                  return `<td class="date-cell ${holidayClass}">
-                    <button class="date-btn ${workClass} ${selected ? "selected" : ""} ${editable ? "" : "readonly"}" ${attrs} aria-selected="${selected ? "true" : "false"}">
-                      <span class="plan-line ${planned ? "has-plan" : ""}">${planned ? qty(planned) : ""}</span>
-                      <span class="actual-line">${units ? qty(units) : ""}</span>
-                      <span class="cost-line">${cost ? money(cost, 0) : ""}</span>
-                      ${editable ? `<span class="fill-handle" data-action="fill-handle" aria-hidden="true"></span>` : ""}
-                    </button>
-                  </td>`;
-                }).join("")}
-              </tr>
-            `;
+      if (!activePeriods.length) {
+        body = `<tr class="empty-row"><td colspan="${totalCols}">ยังไม่ได้เลือกงวดงานสำหรับรอบนี้</td></tr>`;
+      } else {
+        for (const building of buildingsForView(view)) {
+          const periods = periodsForBuilding(building);
+          body += `<tr class="building-row"><td class="sticky col-building" colspan="4">อาคาร ${building}</td>${dates.map((date) => `<td class="date-cell ${isHoliday(date) ? "holiday" : ""}"></td>`).join("")}</tr>`;
+          for (const period of periods) {
+            body += `<tr class="period-row"><td class="sticky col-building"></td><td class="sticky col-period">${esc(period.title)}</td><td class="sticky col-item" colspan="2">${esc(period.description)}</td>${dates.map((date) => `<td class="date-cell ${isHoliday(date) ? "holiday" : ""}"></td>`).join("")}</tr>`;
+            for (const item of period.items) {
+              body += `
+                <tr>
+                  <td class="sticky col-building">${esc(period.building)}</td>
+                  <td class="sticky col-period">งวด ${esc(period.no)}</td>
+                  <td class="sticky col-item">${esc(item.name)} <span class="pill">${money(item.progressPct, 0)}%</span></td>
+                  <td class="sticky col-value num">${money(item.laborValue, 0)}</td>
+                  ${dates.map((date) => {
+                    const planned = n(item.plan?.[date]);
+                    const units = itemActualUnits(item, date);
+                    const cost = itemLaborCost(item, date);
+                    const workClass = units > 0 ? "actual" : "";
+                    const holidayClass = isHoliday(date) ? "holiday" : "";
+                    const selected = editable && cellMatches(state.ui.selectedCell, { periodId: period.id, itemId: item.id, date });
+                    const attrs = editable ? `data-action="edit-cell" data-period-id="${period.id}" data-item-id="${item.id}" data-date="${date}" title="คลิกเพื่อเลือก ดับเบิลคลิกเพื่อแก้ไข"` : "";
+                    return `<td class="date-cell ${holidayClass}">
+                      <button class="date-btn ${workClass} ${selected ? "selected" : ""} ${editable ? "" : "readonly"}" ${attrs} aria-selected="${selected ? "true" : "false"}">
+                        <span class="plan-line ${planned ? "has-plan" : ""}">${planned ? qty(planned) : ""}</span>
+                        <span class="actual-line">${units ? qty(units) : ""}</span>
+                        <span class="cost-line">${cost ? money(cost, 0) : ""}</span>
+                        ${editable ? `<span class="fill-handle" data-action="fill-handle" aria-hidden="true"></span>` : ""}
+                      </button>
+                    </td>`;
+                  }).join("")}
+                </tr>
+              `;
+            }
           }
         }
       }
-      const summaryRows = [
+      const summaryRows = activePeriods.length ? [
         ["จำนวนแรงที่ใช้ตามแผน", (date) => totalPlanned(view, date), "qty"],
         ["จำนวนแรงที่ใช้จริง", (date) => totalActualUnits(view, date), "qty"],
         ["ค่าแรงที่ใช้ต่อวัน", (date) => totalLaborCost(view, date), 0],
@@ -1772,7 +1815,7 @@
           <td class="sticky col-building" colspan="4">${label}</td>
           ${dates.map((date) => `<td class="date-cell ${isHoliday(date) ? "holiday" : ""}">${getter(date) ? (digits === "qty" ? qty(getter(date)) : money(getter(date), digits)) : "0"}</td>`).join("")}
         </tr>
-      `).join("");
+      `).join("") : "";
       return `
         <table class="work-table">
           <thead>
@@ -1804,9 +1847,19 @@
       const cards = ["G", "I"].map((building) => {
         const list = state.periods.filter((period) => period.building === building).sort((a, b) => naturalSort(periodMainNo(a), periodMainNo(b)) || naturalSort(a.no, b.no));
         const summaries = mainPeriodSummaries(building);
+        const activeCount = list.filter(periodEnabled).length;
         return `
           <div class="panel">
-            <div class="panel-head"><h2>หลัง ${building}</h2><span class="pill">${list.length} งวด</span></div>
+            <div class="panel-head">
+              <div class="inline-list">
+                <h2>หลัง ${building}</h2>
+                <span class="pill">เลือกใช้ ${activeCount}/${list.length} งวด</span>
+              </div>
+              <div class="inline-list">
+                <button data-action="enable-building-periods" data-building="${building}">เลือกใช้ทั้งหมด</button>
+                <button data-action="disable-building-periods" data-building="${building}">ไม่เลือกทั้งหมด</button>
+              </div>
+            </div>
             <div class="panel-body">
               ${summaries.length ? `
                 <div class="table-wrap" style="margin-bottom:12px">
@@ -1823,7 +1876,7 @@
                             <td class="num">${money(summary.subValue, 0)}</td>
                             <td class="num">${money(percent, 1)}%</td>
                             <td class="num">${money(summary.laborValue, 0)}</td>
-                            <td><span class="pill ${over ? "red" : "green"}">${over ? "เกินมูลค่างวดหลัก" : `${summary.count} งวดย่อย`}</span></td>
+                            <td><span class="pill ${over ? "red" : "green"}">${over ? "เกินมูลค่างวดหลัก" : `ใช้ ${summary.activeCount}/${summary.count} งวดย่อย`}</span></td>
                           </tr>
                         `;
                       }).join("")}
@@ -1877,7 +1930,7 @@
       const subPercent = n(period.mainValue) ? n(period.periodValue) / n(period.mainValue) * 100 : 0;
       const laborRatio = n(period.periodValue) ? laborValue / n(period.periodValue) * 100 : 0;
       return `
-        <div class="item-card" data-period-card="${period.id}">
+        <div class="item-card ${periodEnabled(period) ? "" : "is-disabled"}" data-period-card="${period.id}">
           <div class="item-card-head">
             <div class="inline-list">
               <span class="pill green">หลัง ${period.building}</span>
@@ -1885,7 +1938,10 @@
               <strong>งวดย่อย ${esc(period.no)}</strong>
               <span>${esc(period.title)}</span>
             </div>
-            <button class="danger" data-action="delete-period" data-period-id="${period.id}">ลบงวด</button>
+            <div class="inline-list">
+              <label class="check-row"><input type="checkbox" data-period-enabled="${period.id}" ${periodEnabled(period) ? "checked" : ""}> เลือกใช้รอบนี้</label>
+              <button class="danger" data-action="delete-period" data-period-id="${period.id}">ลบงวด</button>
+            </div>
           </div>
           <div class="panel-body">
             <div class="quick-summary" style="margin-bottom:10px">
@@ -2305,7 +2361,7 @@
       const quick = getQuickEntry();
       quick[field] = value;
       if (field === "building") {
-        const period = state.periods.find((row) => row.building === value);
+        const period = periodsForBuilding(value)[0];
         quick.periodId = period?.id || "";
         quick.itemId = period?.items[0]?.id || "";
         state.ui.planView = value;
@@ -2607,6 +2663,8 @@
       }
       if (action === "add-period") return addPeriod();
       if (action === "add-item") return addItem();
+      if (action === "enable-building-periods") return setBuildingPeriodsEnabled(button.dataset.building, true);
+      if (action === "disable-building-periods") return setBuildingPeriodsEnabled(button.dataset.building, false);
       if (action === "delete-period") return deletePeriod(button.dataset.periodId);
       if (action === "delete-item") return deleteItem(button.dataset.periodId, button.dataset.itemId);
       if (action === "add-worker") return addWorker();
@@ -2749,6 +2807,14 @@
         saveState();
         return;
       }
+      if (target.dataset.periodEnabled) {
+        const period = getPeriod(target.dataset.periodEnabled);
+        if (!period) return;
+        period.enabled = target.checked;
+        saveState();
+        renderPeriods();
+        return;
+      }
       if (target.id === "newPeriodBuilding") return syncNewMainValueFromExisting();
       if (target.id === "draftMachineSelect") {
         const amount = $("#draftMachineAmount");
@@ -2781,7 +2847,7 @@
             updatePeriodPercent(period);
           });
       }
-      state.periods.push({ id: uid("p"), building, mainNo, mainValue, no, title, description: $("#newPeriodDescription").value.trim(), status: $("#newPeriodStatus").value.trim(), periodValue, periodPercent, items: [] });
+      state.periods.push({ id: uid("p"), building, mainNo, mainValue, no, title, description: $("#newPeriodDescription").value.trim(), status: $("#newPeriodStatus").value.trim(), periodValue, periodPercent, enabled: true, items: [] });
       saveState();
       renderPeriods();
       showToast("เพิ่มงวดแล้ว");
@@ -2796,6 +2862,15 @@
       saveState();
       renderPeriods();
       showToast("เพิ่มรายการแล้ว");
+    }
+
+    function setBuildingPeriodsEnabled(building, enabled) {
+      periodsForBuilding(building, false).forEach((period) => {
+        period.enabled = enabled;
+      });
+      saveState();
+      renderPeriods();
+      showToast(enabled ? `เลือกใช้งวดหลัง ${building} ทั้งหมดแล้ว` : `ปิดใช้งวดหลัง ${building} ทั้งหมดแล้ว`);
     }
 
     function deletePeriod(id) {
@@ -3183,8 +3258,9 @@
       const pad = 16 * scale;
       const rowH = 22 * scale;
       const topH = 128 * scale;
-      const itemRows = periodsForView(view).reduce((sum, period) => sum + 1 + period.items.length * 3, 0);
-      const totalRows = 5;
+      const reportPeriods = periodsForView(view);
+      const itemRows = reportPeriods.reduce((sum, period) => sum + 1 + period.items.length * 3, 0);
+      const totalRows = reportPeriods.length ? 5 : 0;
       const summaryRows = 6;
       const width = leftW + dates.length * dateW + pad * 2;
       const height = topH + (itemRows + totalRows + summaryRows + 4) * rowH + pad * 2;
@@ -3215,7 +3291,7 @@
       groups.forEach((building, index) => {
         const gx = x0 + index * (tableW / Math.max(1, groups.length));
         ctx.fillText(`อาคาร ${building}`, gx + 6 * scale, detailY);
-        const desc = state.periods.filter((p) => p.building === building).map((p) => `งวด ${p.no} ${p.description}`).slice(0, 3);
+        const desc = periodsForBuilding(building).map((p) => `งวด ${p.no} ${p.description}`).slice(0, 3);
         desc.forEach((line, i) => fitText(ctx, line, gx + 18 * scale, detailY + (18 + i * 16) * scale, tableW / groups.length - 24 * scale));
       });
       y += topH - rowH;
@@ -3235,7 +3311,7 @@
       for (const building of buildingsForView(view)) {
         drawCell(ctx, x0, y, tableW, rowH, `อาคาร ${building}`, false, "#ffffff", "#d71920", "left", true);
         y += rowH;
-        const periods = state.periods.filter((period) => period.building === building);
+        const periods = periodsForBuilding(building);
         periods.forEach((period) => {
           period.items.forEach((item, itemIndex) => {
             const seq = itemIndex === 0 ? period.no : "";
@@ -3283,25 +3359,18 @@
         ["ค่าเครื่องจักรที่ใช้ต่อวัน", (date) => totalMachineCost(view, date), 0],
         ["รวมค่าใช้จ่ายต่อวัน", (date) => totalSpend(view, date), 0]
       ];
-      totals.forEach(([label, getter, digits]) => {
-        drawCell(ctx, x0, y, leftW, rowH, label, false, "#ffffff", "#111", "right", true);
-        dates.forEach((date, index) => {
-          const value = getter(date);
-          let bg = isHoliday(date) ? "#c9c9c9" : "#ffffff";
-          let color = "#111";
-          if (digits === "plan" && value) {
-            bg = "#cfe8ff";
-            color = "#0f3f66";
-          }
-          if (digits === "actual" && value) {
-            bg = "#ff2b1f";
-            color = "#fff";
-          }
-          const text = digits === "plan" || digits === "actual" ? (value ? qty(value) : "0") : money(value, digits);
-          drawCell(ctx, x0 + leftW + index * dateW, y, dateW, rowH, text, false, bg, color);
+      if (reportPeriods.length) {
+        totals.forEach(([label, getter, digits]) => {
+          drawCell(ctx, x0, y, leftW, rowH, label, false, "#ffffff", "#111", "right", true);
+          dates.forEach((date, index) => {
+            const value = getter(date);
+            const bg = isHoliday(date) ? "#c9c9c9" : "#ffffff";
+            const text = digits === "plan" || digits === "actual" ? (value ? qty(value) : "0") : money(value, digits);
+            drawCell(ctx, x0 + leftW + index * dateW, y, dateW, rowH, text, false, bg, "#111");
+          });
+          y += rowH;
         });
-        y += rowH;
-      });
+      }
 
       y += rowH;
       const s = summaryFor(view);
