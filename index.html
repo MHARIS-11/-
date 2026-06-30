@@ -625,6 +625,10 @@
       outline-offset: -2px;
       z-index: 2;
     }
+    .work-table .date-btn.multi-selected {
+      background: oklch(0.96 0.025 160);
+      box-shadow: inset 0 0 0 2px oklch(0.72 0.13 160);
+    }
     .work-table .date-btn.fill-source {
       outline: 2px solid var(--primary);
       outline-offset: -2px;
@@ -650,7 +654,7 @@
       z-index: 5;
       touch-action: none;
     }
-    .work-table .date-btn.selected .fill-handle {
+    .work-table .date-btn.selected.is-primary .fill-handle {
       display: block;
     }
     .fill-mode {
@@ -965,6 +969,7 @@
     let state = null;
     let cellDraft = null;
     let fillDrag = null;
+    let selectDrag = null;
     let suppressCellClick = false;
     let toastTimer = null;
 
@@ -1211,7 +1216,7 @@
       }
       next.workPlans = next.workPlans.map((plan, index) => normalizeWorkPlan(plan, next, index));
       if (!next.workPlans.some((plan) => plan.id === next.ui.activeWorkPlanId)) next.ui.activeWorkPlanId = next.workPlans[0]?.id || "";
-      if (!["all", "plan", "actual", "machine"].includes(next.ui.fillMode)) next.ui.fillMode = "all";
+      if (!["all", "plan", "actual", "planActual", "machine"].includes(next.ui.fillMode)) next.ui.fillMode = "all";
       if (!["hide", "move"].includes(next.ui.workerListMode)) next.ui.workerListMode = "hide";
       return next;
     }
@@ -1861,6 +1866,7 @@
       const listMode = workerListMode();
       const selectedPeriod = state.ui.selectedCell ? getPeriod(state.ui.selectedCell.periodId) : null;
       const hasSelected = selectedPeriod && periodEnabled(selectedPeriod);
+      const selectedCount = selectedCellRefs().length;
       el.innerHTML = `
         <div class="plan-shell">
           <div class="plan-toolbar">
@@ -1872,6 +1878,7 @@
                 <option value="all" ${fillMode === "all" ? "selected" : ""}>ทั้งหมด</option>
                 <option value="plan" ${fillMode === "plan" ? "selected" : ""}>จำนวนแรงตามแผน</option>
                 <option value="actual" ${fillMode === "actual" ? "selected" : ""}>คนงานจริง + ค่าแรง</option>
+                <option value="planActual" ${fillMode === "planActual" ? "selected" : ""}>แผน + คนงานจริง</option>
                 <option value="machine" ${fillMode === "machine" ? "selected" : ""}>เครื่องจักร</option>
               </select></label>
               <label class="fill-mode"><span>รายชื่อคนงาน</span><select id="workerListModeSelect">
@@ -1879,6 +1886,7 @@
                 <option value="move" ${listMode === "move" ? "selected" : ""}>ไฮไลต์และย้ายเมื่อยืนยัน</option>
               </select></label>
               <button id="openSelectedCellBtn" data-action="open-selected-cell" ${hasSelected ? "" : "disabled"}>เปิดช่องที่เลือก</button>
+              <button id="clearSelectedCellsBtn" class="danger" data-action="clear-selected-cells" ${selectedCount ? "" : "disabled"}>ล้าง ${selectedCount || ""} ช่อง</button>
               <span class="pill">แดง = งานจริง</span>
               <span class="pill">เทา = วันหยุดบริษัท</span>
               <button data-action="open-report">ไปหน้า Export</button>
@@ -1999,10 +2007,12 @@
                     const cost = itemLaborCost(item, date);
                     const workClass = units > 0 ? "actual" : "";
                     const holidayClass = isHoliday(date) ? "holiday" : "";
-                    const selected = editable && cellMatches(state.ui.selectedCell, { periodId: period.id, itemId: item.id, date });
+                    const ref = { periodId: period.id, itemId: item.id, date };
+                    const selected = editable && isCellSelected(ref);
+                    const primary = editable && cellMatches(state.ui.selectedCell, ref);
                     const attrs = editable ? `data-action="edit-cell" data-period-id="${period.id}" data-item-id="${item.id}" data-date="${date}" title="คลิกเพื่อเลือก ดับเบิลคลิกเพื่อแก้ไข"` : "";
                     return `<td class="date-cell ${holidayClass}">
-                      <button class="date-btn ${workClass} ${selected ? "selected" : ""} ${editable ? "" : "readonly"}" ${attrs} aria-selected="${selected ? "true" : "false"}">
+                      <button class="date-btn ${workClass} ${selected ? "selected multi-selected" : ""} ${primary ? "is-primary" : ""} ${editable ? "" : "readonly"}" ${attrs} aria-selected="${selected ? "true" : "false"}">
                         <span class="plan-line ${planned ? "has-plan" : ""}">${planned ? qty(planned) : ""}</span>
                         <span class="actual-line">${units ? qty(units) : ""}</span>
                         <span class="cost-line">${cost ? money(cost, 0) : ""}</span>
@@ -2494,7 +2504,8 @@
       saveState();
       $("#cellDialog").close();
       cellDraft = null;
-      renderActiveTab();
+      if (activeTab === "plan") renderPlanPreservingScroll();
+      else renderActiveTab();
       showToast("บันทึกช่องงานแล้ว");
     }
 
@@ -2657,10 +2668,56 @@
       return Boolean(a && b && a.periodId === b.periodId && a.itemId === b.itemId && a.date === b.date);
     }
 
+    function cellKey(ref) {
+      return ref ? `${ref.periodId}|${ref.itemId}|${ref.date}` : "";
+    }
+
+    function sameCellRow(a, b) {
+      return Boolean(a && b && a.periodId === b.periodId && a.itemId === b.itemId);
+    }
+
+    function selectedCellRefs() {
+      const refs = Array.isArray(state.ui?.selectedCells) ? state.ui.selectedCells.filter((ref) => ref?.periodId && ref?.itemId && ref?.date) : [];
+      if (refs.length) return refs;
+      return state.ui?.selectedCell ? [state.ui.selectedCell] : [];
+    }
+
+    function setSelectedCells(refs, primary = refs.at(-1), persist = true) {
+      const seen = new Set();
+      const clean = refs.filter((ref) => ref?.periodId && ref?.itemId && ref?.date && !seen.has(cellKey(ref)) && seen.add(cellKey(ref))).map((ref) => ({ ...ref }));
+      state.ui.selectedCells = clean;
+      state.ui.selectedCell = primary ? { ...primary } : clean.at(-1) || null;
+      if (persist) saveState();
+      applySelectedCellHighlight();
+    }
+
+    function rangeRefsBetween(source, target) {
+      if (!sameCellRow(source, target)) return target ? [{ ...target }] : [];
+      return dateSpanBetween(source.date, target.date).map((date) => ({ periodId: source.periodId, itemId: source.itemId, date }));
+    }
+
+    function mergeCellRefs(base, additions) {
+      return [...base, ...additions].reduce((list, ref) => {
+        if (!list.some((row) => cellMatches(row, ref))) list.push({ ...ref });
+        return list;
+      }, []);
+    }
+
+    function toggleSelectedCell(ref) {
+      const current = selectedCellRefs();
+      const exists = current.some((row) => cellMatches(row, ref));
+      const next = exists ? current.filter((row) => !cellMatches(row, ref)) : [...current, ref];
+      setSelectedCells(next, exists ? next.at(-1) : ref);
+    }
+
+    function isCellSelected(ref) {
+      return selectedCellRefs().some((row) => cellMatches(row, ref));
+    }
+
     function fillModeParts(mode = state.ui.fillMode || "all") {
       return {
-        plan: mode === "all" || mode === "plan",
-        actual: mode === "all" || mode === "actual",
+        plan: mode === "all" || mode === "plan" || mode === "planActual",
+        actual: mode === "all" || mode === "actual" || mode === "planActual",
         machine: mode === "all" || mode === "machine"
       };
     }
@@ -2670,8 +2727,31 @@
         all: "ทั้งหมด",
         plan: "จำนวนแรงตามแผน",
         actual: "คนงานจริง + ค่าแรง",
+        planActual: "แผน + คนงานจริง",
         machine: "เครื่องจักร"
       }[mode] || "ทั้งหมด";
+    }
+
+    function capturePlanGridScroll() {
+      const grid = $("#tab-plan .plan-grid");
+      return grid ? { left: grid.scrollLeft, top: grid.scrollTop } : null;
+    }
+
+    function restorePlanGridScroll(scroll) {
+      if (!scroll) return;
+      requestAnimationFrame(() => {
+        const grid = $("#tab-plan .plan-grid");
+        if (!grid) return;
+        grid.scrollLeft = scroll.left;
+        grid.scrollTop = scroll.top;
+        applySelectedCellHighlight();
+      });
+    }
+
+    function renderPlanPreservingScroll() {
+      const scroll = capturePlanGridScroll();
+      renderPlan();
+      restorePlanGridScroll(scroll);
     }
 
     function hasCellDataForMode(period, item, date, mode = state.ui.fillMode || "all") {
@@ -2682,22 +2762,65 @@
         || (parts.machine && (usage?.[period.building]?.[date] || []).length > 0);
     }
 
+    function clearCellData(ref, mode = state.ui.fillMode || "all") {
+      const period = getPeriod(ref?.periodId);
+      const item = getItem(period, ref?.itemId);
+      if (!period || !item || !ref?.date) return false;
+      const parts = fillModeParts(mode);
+      const hadData = hasCellDataForMode(period, item, ref.date, mode);
+      if (parts.plan) setPlan(item, ref.date, 0);
+      if (parts.actual) {
+        const data = ensurePlanItemData(item);
+        delete data.actual[ref.date];
+      }
+      if (parts.machine) {
+        const usage = activeMachineUsage();
+        if (usage?.[period.building]) delete usage[period.building][ref.date];
+      }
+      return hadData;
+    }
+
+    function clearSelectedCells(mode = state.ui.fillMode || "all") {
+      const refs = selectedCellRefs();
+      if (!refs.length) return showToast("เลือกช่องในตารางก่อน");
+      const affected = refs.filter((ref) => {
+        const period = getPeriod(ref.periodId);
+        const item = getItem(period, ref.itemId);
+        return period && item && hasCellDataForMode(period, item, ref.date, mode);
+      });
+      if (!affected.length) return showToast(`ช่องที่เลือกไม่มีข้อมูล ${fillModeLabel(mode)} ให้ล้าง`);
+      if (!confirm(`ล้างข้อมูล ${fillModeLabel(mode)} จำนวน ${affected.length} ช่องหรือไม่?`)) return;
+      refs.forEach((ref) => clearCellData(ref, mode));
+      saveState();
+      renderPlanPreservingScroll();
+      showToast(`ล้างข้อมูล ${fillModeLabel(mode)} ${affected.length} ช่องแล้ว`);
+    }
+
     function selectPlanCell(ref) {
       if (!ref) return;
-      state.ui.selectedCell = { ...ref };
-      saveState();
-      applySelectedCellHighlight();
+      setSelectedCells([ref], ref);
     }
 
     function applySelectedCellHighlight() {
-      const selected = state.ui.selectedCell;
+      const selected = selectedCellRefs();
+      const selectedKeys = new Set(selected.map(cellKey));
+      const primary = state.ui.selectedCell;
       $$('.date-btn[data-action="edit-cell"]').forEach((button) => {
-        const match = cellMatches(cellRefsFromButton(button), selected);
+        const ref = cellRefsFromButton(button);
+        const match = selectedKeys.has(cellKey(ref));
+        const isPrimary = cellMatches(ref, primary);
         button.classList.toggle("selected", match);
+        button.classList.toggle("multi-selected", match);
+        button.classList.toggle("is-primary", isPrimary);
         button.setAttribute("aria-selected", match ? "true" : "false");
       });
       const openButton = $("#openSelectedCellBtn");
-      if (openButton) openButton.disabled = !selected;
+      if (openButton) openButton.disabled = !primary;
+      const clearButton = $("#clearSelectedCellsBtn");
+      if (clearButton) {
+        clearButton.disabled = !selected.length;
+        clearButton.textContent = `ล้าง ${selected.length || ""} ช่อง`;
+      }
     }
 
     function openSelectedCell() {
@@ -2769,15 +2892,30 @@
         copied++;
       });
       saveState();
-      renderPlan();
+      renderPlanPreservingScroll();
       if (conflicts.length) showToast(`เติม ${fillModeLabel(mode)} ${copied} วัน, ข้าม ${conflicts.length} วันเพราะคนงานซ้ำ`);
       else showToast(`เติม ${fillModeLabel(mode)} ${copied} วันแล้ว`);
     }
 
     function handlePointerDown(event) {
       const handle = event.target.closest(".fill-handle");
-      if (!handle) return;
-      const button = handle.closest('button[data-action="edit-cell"]');
+      const button = event.target.closest('button[data-action="edit-cell"]');
+      if (!button) return;
+      if (!handle) {
+        if (event.button !== undefined && event.button !== 0) return;
+        const source = cellRefsFromButton(button);
+        if (!source) return;
+        selectDrag = {
+          source,
+          target: source,
+          pointerId: event.pointerId,
+          moved: false,
+          additive: event.ctrlKey || event.metaKey,
+          base: selectedCellRefs()
+        };
+        try { button.setPointerCapture(event.pointerId); } catch (error) {}
+        return;
+      }
       const source = cellRefsFromButton(button);
       if (!source) return;
       suppressCellClick = true;
@@ -2790,10 +2928,21 @@
     }
 
     function handlePointerMove(event) {
-      if (!fillDrag) return;
+      if (!fillDrag && !selectDrag) return;
       const element = document.elementFromPoint(event.clientX, event.clientY);
       const button = element?.closest?.('button[data-action="edit-cell"]');
       const target = cellRefsFromButton(button);
+      if (selectDrag) {
+        if (target && sameCellRow(target, selectDrag.source)) {
+          selectDrag.target = target;
+          selectDrag.moved = selectDrag.moved || !cellMatches(target, selectDrag.source);
+          const range = rangeRefsBetween(selectDrag.source, target);
+          const refs = selectDrag.additive ? mergeCellRefs(selectDrag.base, range) : range;
+          setSelectedCells(refs, target, false);
+        }
+        event.preventDefault();
+        return;
+      }
       if (target && target.periodId === fillDrag.source.periodId && target.itemId === fillDrag.source.itemId) {
         fillDrag.target = target;
         highlightFillRange(fillDrag.source, target);
@@ -2802,6 +2951,17 @@
     }
 
     function handlePointerUp(event) {
+      if (selectDrag) {
+        const { moved } = selectDrag;
+        selectDrag = null;
+        if (moved) {
+          saveState();
+          suppressCellClick = true;
+          setTimeout(() => { suppressCellClick = false; }, 0);
+          event.preventDefault();
+        }
+        return;
+      }
       if (!fillDrag) return;
       const { source, target } = fillDrag;
       fillDrag = null;
@@ -2882,6 +3042,7 @@
 
       if (action === "open-report") return setActiveTab("report");
       if (action === "open-selected-cell") return openSelectedCell();
+      if (action === "clear-selected-cells") return clearSelectedCells();
       if (action === "add-work-plan") return addWorkPlan();
       if (action === "complete-work-plan") return completeWorkPlan();
       if (action === "edit-cell") {
@@ -2889,7 +3050,12 @@
           suppressCellClick = false;
           return;
         }
-        return selectPlanCell(cellRefsFromButton(button));
+        const ref = cellRefsFromButton(button);
+        if (event.shiftKey && state.ui.selectedCell && sameCellRow(state.ui.selectedCell, ref)) {
+          return setSelectedCells(rangeRefsBetween(state.ui.selectedCell, ref), ref);
+        }
+        if (event.ctrlKey || event.metaKey) return toggleSelectedCell(ref);
+        return selectPlanCell(ref);
       }
       if (action === "quick-add-worker") return quickAddWorker();
       if (action === "quick-save-plan") return quickSetPlan();
@@ -3055,6 +3221,7 @@
       if (target.dataset.workPlanSelect) {
         state.ui.activeWorkPlanId = target.value;
         state.ui.selectedCell = null;
+        state.ui.selectedCells = [];
         saveState();
         return renderAll();
       }
@@ -3093,6 +3260,16 @@
         return;
       }
       if (target.dataset.setting) return renderDashboard();
+    }
+
+    function handleKeyDown(event) {
+      if (event.key !== "Delete") return;
+      if (activeTab !== "plan") return;
+      if ($("#cellDialog")?.open) return;
+      if (event.target?.closest?.("input, textarea, select, [contenteditable='true']")) return;
+      if (!selectedCellRefs().length) return;
+      event.preventDefault();
+      clearSelectedCells();
     }
 
     function addPeriod() {
@@ -3163,6 +3340,7 @@
       state.workPlans.push(plan);
       state.ui.activeWorkPlanId = plan.id;
       state.ui.selectedCell = null;
+      state.ui.selectedCells = [];
       saveState();
       renderAll();
       showToast(`เพิ่ม${workPlanLabel(plan)}แล้ว`);
@@ -3177,6 +3355,7 @@
       state.workPlans.push(nextPlan);
       state.ui.activeWorkPlanId = nextPlan.id;
       state.ui.selectedCell = null;
+      state.ui.selectedCells = [];
       saveState();
       renderAll();
       showToast(`${finishedLabel} เสร็จสิ้นแล้ว เปิด${workPlanLabel(nextPlan)}ใหม่`);
@@ -3755,6 +3934,7 @@
     document.addEventListener("pointerup", handlePointerUp);
     document.addEventListener("pointercancel", handlePointerUp);
     document.addEventListener("dblclick", handleDoubleClick);
+    document.addEventListener("keydown", handleKeyDown);
     $("#saveCellBtn").addEventListener("click", saveCellDraft);
     $("#clearCellBtn").addEventListener("click", clearCellDraft);
 
