@@ -606,7 +606,7 @@
     }
     .work-table .date-btn {
       display: grid;
-      grid-template-rows: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1.5fr;
       gap: 1px;
       width: 100%;
       min-height: 48px;
@@ -625,19 +625,32 @@
       outline-offset: -2px;
       z-index: 2;
     }
-    .work-table .date-btn.multi-selected {
+    .work-table .cell-part {
+      display: grid;
+      align-items: center;
+      justify-items: center;
+      min-height: 18px;
+      position: relative;
+      border-radius: 2px;
+    }
+    .work-table .cell-part.actual-part {
+      border-top: 1px solid var(--line);
+      grid-template-rows: 1fr 1fr;
+    }
+    .work-table .cell-part.part-selected {
       background: oklch(0.96 0.025 160);
       box-shadow: inset 0 0 0 2px oklch(0.72 0.13 160);
+      z-index: 2;
     }
-    .work-table .date-btn.fill-source {
+    .work-table .cell-part.fill-source {
       outline: 2px solid var(--primary);
       outline-offset: -2px;
     }
-    .work-table .date-btn.fill-range {
+    .work-table .cell-part.fill-range {
       box-shadow: inset 0 0 0 2px oklch(0.74 0.12 160);
       background: oklch(0.96 0.025 160);
     }
-    .work-table .date-btn.fill-target {
+    .work-table .cell-part.fill-target {
       box-shadow: inset 0 0 0 2px var(--warning);
     }
     .fill-handle {
@@ -654,7 +667,7 @@
       z-index: 5;
       touch-action: none;
     }
-    .work-table .date-btn.selected.is-primary .fill-handle {
+    .work-table .cell-part.part-primary .fill-handle {
       display: block;
     }
     .fill-mode {
@@ -970,6 +983,9 @@
     let cellDraft = null;
     let fillDrag = null;
     let selectDrag = null;
+    let undoStack = [];
+    let redoStack = [];
+    let appClipboard = null;
     let suppressCellClick = false;
     let toastTimer = null;
 
@@ -1225,6 +1241,47 @@
 
     function saveState() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function stateSnapshot() {
+      return JSON.stringify(state);
+    }
+
+    function recordHistory(label = "แก้ไข") {
+      undoStack.push({ label, snapshot: stateSnapshot() });
+      if (undoStack.length > 60) undoStack.shift();
+      redoStack = [];
+      updateHistoryButtons();
+    }
+
+    function restoreSnapshot(snapshot) {
+      state = normalizeState(JSON.parse(snapshot));
+      saveState();
+      renderAll();
+      updateHistoryButtons();
+    }
+
+    function undo() {
+      const entry = undoStack.pop();
+      if (!entry) return showToast("ไม่มีรายการให้ย้อนกลับ");
+      redoStack.push({ label: entry.label, snapshot: stateSnapshot() });
+      restoreSnapshot(entry.snapshot);
+      showToast(`ย้อนกลับ: ${entry.label}`);
+    }
+
+    function redo() {
+      const entry = redoStack.pop();
+      if (!entry) return showToast("ไม่มีรายการให้ไปหน้า");
+      undoStack.push({ label: entry.label, snapshot: stateSnapshot() });
+      restoreSnapshot(entry.snapshot);
+      showToast(`ไปหน้า: ${entry.label}`);
+    }
+
+    function updateHistoryButtons() {
+      const undoButton = $("#undoBtn");
+      const redoButton = $("#redoBtn");
+      if (undoButton) undoButton.disabled = !undoStack.length;
+      if (redoButton) redoButton.disabled = !redoStack.length;
     }
 
     function activeWorkPlan() {
@@ -1887,6 +1944,8 @@
               </select></label>
               <button id="openSelectedCellBtn" data-action="open-selected-cell" ${hasSelected ? "" : "disabled"}>เปิดช่องที่เลือก</button>
               <button id="clearSelectedCellsBtn" class="danger" data-action="clear-selected-cells" ${selectedCount ? "" : "disabled"}>ล้าง ${selectedCount || ""} ช่อง</button>
+              <button id="undoBtn" data-action="undo" ${undoStack.length ? "" : "disabled"}>ย้อนกลับ</button>
+              <button id="redoBtn" data-action="redo" ${redoStack.length ? "" : "disabled"}>ไปหน้า</button>
               <span class="pill">แดง = งานจริง</span>
               <span class="pill">เทา = วันหยุดบริษัท</span>
               <button data-action="open-report">ไปหน้า Export</button>
@@ -2007,16 +2066,25 @@
                     const cost = itemLaborCost(item, date);
                     const workClass = units > 0 ? "actual" : "";
                     const holidayClass = isHoliday(date) ? "holiday" : "";
-                    const ref = { periodId: period.id, itemId: item.id, date };
-                    const selected = editable && isCellSelected(ref);
-                    const primary = editable && cellMatches(state.ui.selectedCell, ref);
+                    const planRef = { periodId: period.id, itemId: item.id, date, part: "plan" };
+                    const actualRef = { periodId: period.id, itemId: item.id, date, part: "actual" };
+                    const planSelected = editable && isCellSelected(planRef);
+                    const actualSelected = editable && isCellSelected(actualRef);
+                    const anySelected = planSelected || actualSelected;
+                    const planPrimary = editable && cellMatches(state.ui.selectedCell, planRef);
+                    const actualPrimary = editable && cellMatches(state.ui.selectedCell, actualRef);
                     const attrs = editable ? `data-action="edit-cell" data-period-id="${period.id}" data-item-id="${item.id}" data-date="${date}" title="คลิกเพื่อเลือก ดับเบิลคลิกเพื่อแก้ไข"` : "";
                     return `<td class="date-cell ${holidayClass}">
-                      <button class="date-btn ${workClass} ${selected ? "selected multi-selected" : ""} ${primary ? "is-primary" : ""} ${editable ? "" : "readonly"}" ${attrs} aria-selected="${selected ? "true" : "false"}">
-                        <span class="plan-line ${planned ? "has-plan" : ""}">${planned ? qty(planned) : ""}</span>
-                        <span class="actual-line">${units ? qty(units) : ""}</span>
-                        <span class="cost-line">${cost ? money(cost, 0) : ""}</span>
-                        ${editable ? `<span class="fill-handle" data-action="fill-handle" aria-hidden="true"></span>` : ""}
+                      <button class="date-btn ${workClass} ${anySelected ? "selected" : ""} ${editable ? "" : "readonly"}" ${attrs} aria-selected="${anySelected ? "true" : "false"}">
+                        <span class="cell-part plan-part ${planSelected ? "part-selected" : ""} ${planPrimary ? "part-primary" : ""}" data-cell-part="plan" title="จำนวนแรงตามแผน">
+                          <span class="plan-line ${planned ? "has-plan" : ""}">${planned ? qty(planned) : ""}</span>
+                          ${editable ? `<span class="fill-handle" data-action="fill-handle" aria-hidden="true"></span>` : ""}
+                        </span>
+                        <span class="cell-part actual-part ${actualSelected ? "part-selected" : ""} ${actualPrimary ? "part-primary" : ""}" data-cell-part="actual" title="จำนวนแรงจริง + ค่าแรง">
+                          <span class="actual-line">${units ? qty(units) : ""}</span>
+                          <span class="cost-line">${cost ? money(cost, 0) : ""}</span>
+                          ${editable ? `<span class="fill-handle" data-action="fill-handle" aria-hidden="true"></span>` : ""}
+                        </span>
                       </button>
                     </td>`;
                   }).join("")}
@@ -2491,6 +2559,7 @@
           moves.push(assigned);
         }
       }
+      recordHistory("บันทึกช่องงาน");
       moves.forEach((assigned) => removeWorkerFromAssignment(assigned, cellDraft.date));
       const cleanAssignments = cellDraft.assignments.map(({ transferFrom, ...row }) => row);
       setPlan(item, cellDraft.date, $("#draftPlanned")?.value || 0);
@@ -2551,6 +2620,7 @@
       const { quick, item } = selectedQuickRefs();
       if (!item || !quick.date) return showToast("เลือกงวด รายการ และวันที่ก่อน");
       const plannedInput = $('[data-quick-field="planned"]');
+      recordHistory("บันทึกจำนวนแรงตามแผน");
       setPlan(item, quick.date, plannedInput ? plannedInput.value : quick.planned || 0);
       saveState();
       renderPlan();
@@ -2573,6 +2643,7 @@
       }
       if (actualEntries(item, quick.date).some((row) => row.workerId === workerId)) return showToast("คนงานนี้อยู่ในช่องนี้แล้ว");
       const plannedInput = $('[data-quick-field="planned"]');
+      recordHistory("เพิ่มคนงานจริง");
       setPlan(item, quick.date, plannedInput ? plannedInput.value : quick.planned || 0);
       const unit = quick.unit || "full";
       const hours = unit === "full" ? n(state.settings.dayHours) : unit === "half" ? n(state.settings.dayHours) / 2 : n(quick.hours);
@@ -2587,6 +2658,7 @@
       if (!quick.building || !quick.date) return showToast("เลือกอาคารและวันที่ก่อน");
       const machine = getMachine(quick.machineId);
       if (!machine) return showToast("เลือกเครื่องจักรก่อน");
+      recordHistory("เพิ่มเครื่องจักร");
       const usage = activeMachineUsage();
       usage[quick.building] = usage[quick.building] || {};
       const rows = usage[quick.building][quick.date] || [];
@@ -2655,36 +2727,49 @@
       return dates.slice(low, high + 1);
     }
 
-    function cellRefsFromButton(button) {
+    function cellPartFromElement(element) {
+      return element?.closest?.("[data-cell-part]")?.dataset?.cellPart || "actual";
+    }
+
+    function cellPartFromEvent(button, event) {
+      const explicit = event?.target?.closest?.("[data-cell-part]")?.dataset?.cellPart;
+      if (explicit) return explicit;
+      const rect = button?.getBoundingClientRect?.();
+      if (!rect || event?.clientY === undefined) return "actual";
+      return event.clientY < rect.top + rect.height * 0.45 ? "plan" : "actual";
+    }
+
+    function cellRefsFromButton(button, part = "actual") {
       if (!button?.dataset?.periodId || !button?.dataset?.itemId || !button?.dataset?.date) return null;
       return {
         periodId: button.dataset.periodId,
         itemId: button.dataset.itemId,
-        date: button.dataset.date
+        date: button.dataset.date,
+        part: part || "actual"
       };
     }
 
     function cellMatches(a, b) {
-      return Boolean(a && b && a.periodId === b.periodId && a.itemId === b.itemId && a.date === b.date);
+      return Boolean(a && b && a.periodId === b.periodId && a.itemId === b.itemId && a.date === b.date && (a.part || "actual") === (b.part || "actual"));
     }
 
     function cellKey(ref) {
-      return ref ? `${ref.periodId}|${ref.itemId}|${ref.date}` : "";
+      return ref ? `${ref.periodId}|${ref.itemId}|${ref.date}|${ref.part || "actual"}` : "";
     }
 
     function sameCellRow(a, b) {
-      return Boolean(a && b && a.periodId === b.periodId && a.itemId === b.itemId);
+      return Boolean(a && b && a.periodId === b.periodId && a.itemId === b.itemId && (a.part || "actual") === (b.part || "actual"));
     }
 
     function selectedCellRefs() {
-      const refs = Array.isArray(state.ui?.selectedCells) ? state.ui.selectedCells.filter((ref) => ref?.periodId && ref?.itemId && ref?.date) : [];
+      const refs = Array.isArray(state.ui?.selectedCells) ? state.ui.selectedCells.filter((ref) => ref?.periodId && ref?.itemId && ref?.date).map((ref) => ({ ...ref, part: ref.part || "actual" })) : [];
       if (refs.length) return refs;
-      return state.ui?.selectedCell ? [state.ui.selectedCell] : [];
+      return state.ui?.selectedCell ? [{ ...state.ui.selectedCell, part: state.ui.selectedCell.part || "actual" }] : [];
     }
 
     function setSelectedCells(refs, primary = refs.at(-1), persist = true) {
       const seen = new Set();
-      const clean = refs.filter((ref) => ref?.periodId && ref?.itemId && ref?.date && !seen.has(cellKey(ref)) && seen.add(cellKey(ref))).map((ref) => ({ ...ref }));
+      const clean = refs.filter((ref) => ref?.periodId && ref?.itemId && ref?.date && !seen.has(cellKey(ref)) && seen.add(cellKey(ref))).map((ref) => ({ ...ref, part: ref.part || "actual" }));
       state.ui.selectedCells = clean;
       state.ui.selectedCell = primary ? { ...primary } : clean.at(-1) || null;
       if (persist) saveState();
@@ -2693,7 +2778,7 @@
 
     function rangeRefsBetween(source, target) {
       if (!sameCellRow(source, target)) return target ? [{ ...target }] : [];
-      return dateSpanBetween(source.date, target.date).map((date) => ({ periodId: source.periodId, itemId: source.itemId, date }));
+      return dateSpanBetween(source.date, target.date).map((date) => ({ periodId: source.periodId, itemId: source.itemId, date, part: source.part || "actual" }));
     }
 
     function mergeCellRefs(base, additions) {
@@ -2732,6 +2817,12 @@
       }[mode] || "ทั้งหมด";
     }
 
+    function modeForCellRef(ref, fallback = state.ui.fillMode || "all") {
+      if ((ref?.part || "") === "plan") return "plan";
+      if ((ref?.part || "") === "actual") return "actual";
+      return fallback;
+    }
+
     function capturePlanGridScroll() {
       const grid = $("#tab-plan .plan-grid");
       return grid ? { left: grid.scrollLeft, top: grid.scrollTop } : null;
@@ -2762,10 +2853,17 @@
         || (parts.machine && (usage?.[period.building]?.[date] || []).length > 0);
     }
 
-    function clearCellData(ref, mode = state.ui.fillMode || "all") {
+    function hasCellDataForRef(ref) {
+      const period = getPeriod(ref?.periodId);
+      const item = getItem(period, ref?.itemId);
+      return Boolean(period && item && hasCellDataForMode(period, item, ref.date, modeForCellRef(ref)));
+    }
+
+    function clearCellData(ref) {
       const period = getPeriod(ref?.periodId);
       const item = getItem(period, ref?.itemId);
       if (!period || !item || !ref?.date) return false;
+      const mode = modeForCellRef(ref);
       const parts = fillModeParts(mode);
       const hadData = hasCellDataForMode(period, item, ref.date, mode);
       if (parts.plan) setPlan(item, ref.date, 0);
@@ -2780,20 +2878,98 @@
       return hadData;
     }
 
-    function clearSelectedCells(mode = state.ui.fillMode || "all") {
+    function clearSelectedCells() {
       const refs = selectedCellRefs();
       if (!refs.length) return showToast("เลือกช่องในตารางก่อน");
-      const affected = refs.filter((ref) => {
-        const period = getPeriod(ref.periodId);
-        const item = getItem(period, ref.itemId);
-        return period && item && hasCellDataForMode(period, item, ref.date, mode);
-      });
-      if (!affected.length) return showToast(`ช่องที่เลือกไม่มีข้อมูล ${fillModeLabel(mode)} ให้ล้าง`);
-      if (!confirm(`ล้างข้อมูล ${fillModeLabel(mode)} จำนวน ${affected.length} ช่องหรือไม่?`)) return;
-      refs.forEach((ref) => clearCellData(ref, mode));
+      const affected = refs.filter(hasCellDataForRef);
+      if (!affected.length) return showToast("ช่องที่เลือกไม่มีข้อมูลให้ล้าง");
+      recordHistory("ล้างข้อมูลช่องงาน");
+      refs.forEach((ref) => clearCellData(ref));
       saveState();
       renderPlanPreservingScroll();
-      showToast(`ล้างข้อมูล ${fillModeLabel(mode)} ${affected.length} ช่องแล้ว`);
+      showToast(`ล้างข้อมูล ${affected.length} ช่องแล้ว`);
+    }
+
+    function cellPartSnapshot(ref) {
+      const period = getPeriod(ref?.periodId);
+      const item = getItem(period, ref?.itemId);
+      if (!period || !item || !ref?.date) return null;
+      if ((ref.part || "actual") === "plan") {
+        return { part: "plan", plan: itemPlanValue(item, ref.date) };
+      }
+      return { part: "actual", actual: actualEntries(item, ref.date).map((row) => ({ ...row })) };
+    }
+
+    function canPasteActual(ref, rows) {
+      return !rows.some((row) => workerAssignedInfo(row.workerId, ref.date, { periodId: ref.periodId, itemId: ref.itemId, date: ref.date }));
+    }
+
+    function applyCellPartSnapshot(ref, snapshot) {
+      const period = getPeriod(ref?.periodId);
+      const item = getItem(period, ref?.itemId);
+      if (!period || !item || !snapshot) return false;
+      if ((ref.part || "actual") !== snapshot.part) return false;
+      if (snapshot.part === "plan") {
+        setPlan(item, ref.date, snapshot.plan || 0);
+        return true;
+      }
+      if (!canPasteActual(ref, snapshot.actual || [])) return false;
+      const data = ensurePlanItemData(item);
+      if (snapshot.actual?.length) data.actual[ref.date] = snapshot.actual.map((row) => ({ ...row }));
+      else delete data.actual[ref.date];
+      return true;
+    }
+
+    function dateOffset(fromDate, toDate) {
+      const dates = getDates();
+      return dates.indexOf(toDate) - dates.indexOf(fromDate);
+    }
+
+    function dateAtOffset(date, offset) {
+      const dates = getDates();
+      const index = dates.indexOf(date);
+      return index < 0 ? "" : dates[index + offset] || "";
+    }
+
+    function copySelectedCells() {
+      const refs = selectedCellRefs();
+      if (!refs.length) return showToast("เลือกช่องในตารางก่อน");
+      const primary = state.ui.selectedCell || refs[0];
+      const cells = refs.map((ref) => ({ offset: dateOffset(primary.date, ref.date), snapshot: cellPartSnapshot(ref) })).filter((row) => row.snapshot);
+      if (!cells.length) return showToast("ไม่มีข้อมูลให้คัดลอก");
+      appClipboard = { primary: { ...primary }, cells };
+      showToast(`คัดลอก ${cells.length} ช่องแล้ว`);
+    }
+
+    function pasteCells() {
+      if (!appClipboard?.cells?.length) return showToast("ยังไม่มีข้อมูลที่คัดลอกไว้");
+      const targets = selectedCellRefs();
+      if (!targets.length) return showToast("เลือกช่องปลายทางก่อน");
+      const primary = state.ui.selectedCell || targets[0];
+      const operations = [];
+      if (appClipboard.cells.length === 1 && targets.length > 1) {
+        const snapshot = appClipboard.cells[0].snapshot;
+        targets.forEach((target) => operations.push({ ref: target, snapshot }));
+      } else {
+        appClipboard.cells.forEach((cell) => {
+          const date = dateAtOffset(primary.date, cell.offset);
+          if (!date) return;
+          operations.push({ ref: { periodId: primary.periodId, itemId: primary.itemId, date, part: cell.snapshot.part }, snapshot: cell.snapshot });
+        });
+      }
+      const valid = operations.filter(({ ref, snapshot }) => {
+        const period = getPeriod(ref.periodId);
+        const item = getItem(period, ref.itemId);
+        if (!period || !item || (ref.part || "actual") !== snapshot.part) return false;
+        if (snapshot.part === "actual" && !canPasteActual(ref, snapshot.actual || [])) return false;
+        return true;
+      });
+      if (!valid.length) return showToast("วางไม่ได้ เพราะชนิดช่องไม่ตรงหรือคนงานซ้ำ");
+      recordHistory("วางข้อมูลช่องงาน");
+      valid.forEach(({ ref, snapshot }) => applyCellPartSnapshot(ref, snapshot));
+      saveState();
+      renderPlanPreservingScroll();
+      showToast(`วางข้อมูล ${valid.length} ช่องแล้ว`);
     }
 
     function selectPlanCell(ref) {
@@ -2806,13 +2982,17 @@
       const selectedKeys = new Set(selected.map(cellKey));
       const primary = state.ui.selectedCell;
       $$('.date-btn[data-action="edit-cell"]').forEach((button) => {
-        const ref = cellRefsFromButton(button);
-        const match = selectedKeys.has(cellKey(ref));
-        const isPrimary = cellMatches(ref, primary);
-        button.classList.toggle("selected", match);
-        button.classList.toggle("multi-selected", match);
-        button.classList.toggle("is-primary", isPrimary);
-        button.setAttribute("aria-selected", match ? "true" : "false");
+        let buttonSelected = false;
+        button.querySelectorAll("[data-cell-part]").forEach((partEl) => {
+          const ref = cellRefsFromButton(button, partEl.dataset.cellPart);
+          const match = selectedKeys.has(cellKey(ref));
+          const isPrimary = cellMatches(ref, primary);
+          partEl.classList.toggle("part-selected", match);
+          partEl.classList.toggle("part-primary", isPrimary);
+          buttonSelected = buttonSelected || match;
+        });
+        button.classList.toggle("selected", buttonSelected);
+        button.setAttribute("aria-selected", buttonSelected ? "true" : "false");
       });
       const openButton = $("#openSelectedCellBtn");
       if (openButton) openButton.disabled = !primary;
@@ -2830,8 +3010,8 @@
     }
 
     function clearFillHighlight() {
-      $$(".date-btn.fill-source, .date-btn.fill-range, .date-btn.fill-target").forEach((button) => {
-        button.classList.remove("fill-source", "fill-range", "fill-target");
+      $$(".fill-source, .fill-range, .fill-target").forEach((element) => {
+        element.classList.remove("fill-source", "fill-range", "fill-target");
       });
     }
 
@@ -2840,16 +3020,17 @@
       if (!source || !target) return;
       const span = new Set(dateSpanBetween(source.date, target.date));
       $$('.date-btn[data-action="edit-cell"]').forEach((button) => {
-        const ref = cellRefsFromButton(button);
+        const partEl = button.querySelector(`[data-cell-part="${source.part || "actual"}"]`);
+        const ref = cellRefsFromButton(button, source.part || "actual");
         if (!ref || ref.periodId !== source.periodId || ref.itemId !== source.itemId) return;
         if (!span.has(ref.date)) return;
-        button.classList.add("fill-range");
-        if (ref.date === source.date) button.classList.add("fill-source");
-        if (ref.date === target.date && ref.date !== source.date) button.classList.add("fill-target");
+        partEl?.classList.add("fill-range");
+        if (ref.date === source.date) partEl?.classList.add("fill-source");
+        if (ref.date === target.date && ref.date !== source.date) partEl?.classList.add("fill-target");
       });
     }
 
-    function copyCellRange(source, target, mode = state.ui.fillMode || "all") {
+    function copyCellRange(source, target, mode = modeForCellRef(source)) {
       if (!source || !target) return;
       if (source.periodId !== target.periodId || source.itemId !== target.itemId) {
         showToast("ลากคัดลอกได้เฉพาะรายการเดียวกัน");
@@ -2869,6 +3050,7 @@
       const sourceMachines = (usage?.[period.building]?.[source.date] || []).map((row) => ({ ...row }));
       const conflicts = [];
       let copied = 0;
+      recordHistory(`ลากคัดลอก ${fillModeLabel(mode)}`);
       targetDates.forEach((date) => {
         const blocked = parts.actual && sourceActual.find((row) => workerAssignedInfo(row.workerId, date, { periodId: period.id, itemId: item.id, date }));
         if (blocked) {
@@ -2903,7 +3085,7 @@
       if (!button) return;
       if (!handle) {
         if (event.button !== undefined && event.button !== 0) return;
-        const source = cellRefsFromButton(button);
+        const source = cellRefsFromButton(button, cellPartFromEvent(button, event));
         if (!source) return;
         selectDrag = {
           source,
@@ -2916,7 +3098,7 @@
         try { button.setPointerCapture(event.pointerId); } catch (error) {}
         return;
       }
-      const source = cellRefsFromButton(button);
+      const source = cellRefsFromButton(button, cellPartFromElement(handle));
       if (!source) return;
       suppressCellClick = true;
       fillDrag = { source, target: source, pointerId: event.pointerId };
@@ -2931,7 +3113,7 @@
       if (!fillDrag && !selectDrag) return;
       const element = document.elementFromPoint(event.clientX, event.clientY);
       const button = element?.closest?.('button[data-action="edit-cell"]');
-      const target = cellRefsFromButton(button);
+      const target = cellRefsFromButton(button, selectDrag?.source?.part || fillDrag?.source?.part || cellPartFromElement(element));
       if (selectDrag) {
         if (target && sameCellRow(target, selectDrag.source)) {
           selectDrag.target = target;
@@ -2966,7 +3148,7 @@
       const { source, target } = fillDrag;
       fillDrag = null;
       clearFillHighlight();
-      if (target && target.date !== source.date) copyCellRange(source, target, state.ui.fillMode || "all");
+      if (target && target.date !== source.date) copyCellRange(source, target);
       setTimeout(() => { suppressCellClick = false; }, 0);
       event.preventDefault();
     }
@@ -2974,7 +3156,7 @@
     function handleDoubleClick(event) {
       const button = event.target.closest('button[data-action="edit-cell"]');
       if (!button || event.target.closest(".fill-handle")) return;
-      const ref = cellRefsFromButton(button);
+      const ref = cellRefsFromButton(button, cellPartFromEvent(button, event));
       if (!ref) return;
       selectPlanCell(ref);
       openCellEditor(ref.periodId, ref.itemId, ref.date);
@@ -3043,6 +3225,8 @@
       if (action === "open-report") return setActiveTab("report");
       if (action === "open-selected-cell") return openSelectedCell();
       if (action === "clear-selected-cells") return clearSelectedCells();
+      if (action === "undo") return undo();
+      if (action === "redo") return redo();
       if (action === "add-work-plan") return addWorkPlan();
       if (action === "complete-work-plan") return completeWorkPlan();
       if (action === "edit-cell") {
@@ -3050,7 +3234,7 @@
           suppressCellClick = false;
           return;
         }
-        const ref = cellRefsFromButton(button);
+        const ref = cellRefsFromButton(button, cellPartFromEvent(button, event));
         if (event.shiftKey && state.ui.selectedCell && sameCellRow(state.ui.selectedCell, ref)) {
           return setSelectedCells(rangeRefsBetween(state.ui.selectedCell, ref), ref);
         }
@@ -3263,13 +3447,32 @@
     }
 
     function handleKeyDown(event) {
-      if (event.key !== "Delete") return;
       if (activeTab !== "plan") return;
       if ($("#cellDialog")?.open) return;
       if (event.target?.closest?.("input, textarea, select, [contenteditable='true']")) return;
-      if (!selectedCellRefs().length) return;
-      event.preventDefault();
-      clearSelectedCells();
+      const key = event.key.toLowerCase();
+      const mod = event.ctrlKey || event.metaKey;
+      if (mod && key === "z") {
+        event.preventDefault();
+        return undo();
+      }
+      if (mod && key === "y") {
+        event.preventDefault();
+        return redo();
+      }
+      if (mod && key === "c") {
+        event.preventDefault();
+        return copySelectedCells();
+      }
+      if (mod && key === "v") {
+        event.preventDefault();
+        return pasteCells();
+      }
+      if (event.key === "Delete") {
+        if (!selectedCellRefs().length) return;
+        event.preventDefault();
+        return clearSelectedCells();
+      }
     }
 
     function addPeriod() {
@@ -3318,6 +3521,18 @@
       return String((nums.length ? Math.max(...nums) : 0) + 1);
     }
 
+    function nextExistingWorkPlan(current) {
+      if (!current) return null;
+      const currentNo = Number(current.claimNo);
+      if (Number.isFinite(currentNo)) {
+        return [...state.workPlans]
+          .filter((plan) => plan.id !== current.id && plan.status !== "เสร็จสิ้น" && Number(plan.claimNo) > currentNo)
+          .sort((a, b) => Number(a.claimNo) - Number(b.claimNo))[0] || null;
+      }
+      const index = state.workPlans.findIndex((plan) => plan.id === current.id);
+      return state.workPlans.slice(index + 1).find((plan) => plan.status !== "เสร็จสิ้น") || null;
+    }
+
     function createWorkPlan(claimNo = nextClaimNo()) {
       return normalizeWorkPlan({
         id: uid("wp"),
@@ -3350,9 +3565,14 @@
       const plan = activeWorkPlan();
       if (!plan) return;
       const finishedLabel = workPlanLabel(plan);
+      recordHistory("เสร็จสิ้นแผนเบิกงวด");
       plan.status = "เสร็จสิ้น";
-      const nextPlan = createWorkPlan(nextClaimNo());
-      state.workPlans.push(nextPlan);
+      let nextPlan = nextExistingWorkPlan(plan);
+      if (!nextPlan) {
+        nextPlan = createWorkPlan(nextClaimNo());
+        state.workPlans.push(nextPlan);
+      }
+      nextPlan.status = nextPlan.status || "กำลังทำ";
       state.ui.activeWorkPlanId = nextPlan.id;
       state.ui.selectedCell = null;
       state.ui.selectedCells = [];
