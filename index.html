@@ -1132,6 +1132,7 @@
       next.machineUsage.I = next.machineUsage.I || {};
       next.ui = next.ui || {};
       if (!["all", "plan", "actual", "machine"].includes(next.ui.fillMode)) next.ui.fillMode = "all";
+      if (!["hide", "move"].includes(next.ui.workerListMode)) next.ui.workerListMode = "hide";
       return next;
     }
 
@@ -1418,12 +1419,43 @@
             const entry = entries[index];
             const sameCell = ignore && ignore.periodId === period.id && ignore.itemId === item.id && ignore.date === date;
             if (entry.workerId === workerId && !sameCell) {
-              return { period, item, entry, index };
+              return { period, item, entry, index, date };
             }
           }
         }
       }
       return null;
+    }
+
+    function workerListMode() {
+      return state.ui?.workerListMode === "move" ? "move" : "hide";
+    }
+
+    function assignedLabel(assigned) {
+      return `หลัง ${assigned.period.building} งวด ${assigned.period.no} · ${assigned.item.name}`;
+    }
+
+    function removeWorkerFromAssignment(assigned, date) {
+      if (!assigned?.item || !date) return;
+      const entries = actualEntries(assigned.item, date);
+      const nextRows = entries.filter((row) => row.workerId !== assigned.entry.workerId);
+      if (nextRows.length) assigned.item.actual[date] = nextRows;
+      else delete assigned.item.actual[date];
+    }
+
+    function transferToken(assigned) {
+      return assigned ? `${assigned.period.id}|${assigned.item.id}|${assigned.index}` : "";
+    }
+
+    function confirmWorkerMove(worker, assigned) {
+      return confirm(`${worker.code} · ${worker.name} ถูกใช้แล้วที่ ${assignedLabel(assigned)}\nต้องการย้ายมาช่องนี้แทนหรือไม่?`);
+    }
+
+    function workerOption(worker, assigned, selected = false, disabled = false, extraLabel = "") {
+      const used = Boolean(assigned) || Boolean(extraLabel);
+      const suffix = assigned ? `ใช้แล้วที่ ${assignedLabel(assigned)}` : extraLabel || money(worker.dailyWage, 0);
+      const style = used ? `style="background:#d9fbe8;color:#064e3b;font-weight:800"` : "";
+      return `<option value="${worker.id}" ${selected ? "selected" : ""} ${disabled ? "disabled" : ""} ${style}>${esc(worker.code)} · ${esc(worker.name)} · ${esc(suffix)}</option>`;
     }
 
     function duplicateWorkerInDraft(workerId) {
@@ -1657,6 +1689,7 @@
       const dates = getDates();
       const el = $("#tab-plan");
       const fillMode = state.ui.fillMode || "all";
+      const listMode = workerListMode();
       const selectedPeriod = state.ui.selectedCell ? getPeriod(state.ui.selectedCell.periodId) : null;
       const hasSelected = selectedPeriod && periodEnabled(selectedPeriod);
       el.innerHTML = `
@@ -1671,6 +1704,10 @@
                 <option value="plan" ${fillMode === "plan" ? "selected" : ""}>จำนวนแรงตามแผน</option>
                 <option value="actual" ${fillMode === "actual" ? "selected" : ""}>คนงานจริง + ค่าแรง</option>
                 <option value="machine" ${fillMode === "machine" ? "selected" : ""}>เครื่องจักร</option>
+              </select></label>
+              <label class="fill-mode"><span>รายชื่อคนงาน</span><select id="workerListModeSelect">
+                <option value="hide" ${listMode === "hide" ? "selected" : ""}>ตัดชื่อที่ใช้แล้วออก</option>
+                <option value="move" ${listMode === "move" ? "selected" : ""}>ไฮไลต์และย้ายเมื่อยืนยัน</option>
               </select></label>
               <button id="openSelectedCellBtn" data-action="open-selected-cell" ${hasSelected ? "" : "disabled"}>เปิดช่องที่เลือก</button>
               <span class="pill">แดง = งานจริง</span>
@@ -1696,12 +1733,17 @@
       const currentMachine = totalMachineCost(quick.building, quick.date);
       const ignore = item ? { periodId: period.id, itemId: item.id, date: quick.date } : null;
       const usedInCell = new Set(item ? actualEntries(item, quick.date).map((row) => row.workerId) : []);
-      const workerOptions = state.workers.map((worker) => {
+      const listMode = workerListMode();
+      const workerRows = state.workers.map((worker) => {
         const assigned = ignore ? workerAssignedInfo(worker.id, quick.date, ignore) : null;
-        const disabled = assigned || usedInCell.has(worker.id) ? "disabled" : "";
-        const suffix = assigned ? `ใช้แล้วที่ ${assigned.period.building} งวด ${assigned.period.no}` : usedInCell.has(worker.id) ? "อยู่ในช่องนี้แล้ว" : money(worker.dailyWage, 0);
-        return `<option value="${worker.id}" ${quick.workerId === worker.id ? "selected" : ""} ${disabled}>${esc(worker.code)} · ${esc(worker.name)} · ${esc(suffix)}</option>`;
-      }).join("");
+        const inCell = usedInCell.has(worker.id);
+        const hidden = listMode === "hide" && (assigned || inCell);
+        const disabled = inCell;
+        const extraLabel = inCell ? "อยู่ในช่องนี้แล้ว" : "";
+        return { worker, assigned, hidden, disabled, extraLabel };
+      }).filter((row) => !row.hidden);
+      if (!workerRows.some((row) => row.worker.id === quick.workerId)) quick.workerId = workerRows[0]?.worker.id || "";
+      const workerOptions = workerRows.map(({ worker, assigned, disabled, extraLabel }) => workerOption(worker, assigned, quick.workerId === worker.id, disabled, extraLabel)).join("");
       const existing = item ? actualEntries(item, quick.date).map((row) => {
         const worker = getWorker(row.workerId);
         return `<span class="pill red">${esc(worker?.code || "")} ${esc(worker?.name || "")} ${qty(laborUnits(row))} แรง</span>`;
@@ -2163,11 +2205,13 @@
     function renderCellDialog(error = "") {
       if (!cellDraft) return;
       const ignore = { periodId: cellDraft.periodId, itemId: cellDraft.itemId, date: cellDraft.date };
+      const draftWorkerIds = new Set(cellDraft.assignments.map((row) => row.workerId));
+      const listMode = workerListMode();
       const workerOptions = state.workers.map((worker) => {
         const assigned = workerAssignedInfo(worker.id, cellDraft.date, ignore);
-        const disabled = assigned ? "disabled" : "";
-        const label = assigned ? `${worker.code} · ${worker.name} · ใช้แล้วที่ ${assigned.period.building} งวด ${assigned.period.no}` : `${worker.code} · ${worker.name} · ${money(worker.dailyWage, 0)}`;
-        return `<option value="${worker.id}" ${disabled}>${esc(label)}</option>`;
+        const inDraft = draftWorkerIds.has(worker.id);
+        if (listMode === "hide" && (assigned || inDraft)) return "";
+        return workerOption(worker, assigned, false, inDraft, inDraft ? "อยู่ในช่องนี้แล้ว" : "");
       }).join("");
       const machineOptions = state.machines.map((machine) => `<option value="${machine.id}">${esc(machine.name)} · ${money(machine.dailyCost, 0)}</option>`).join("");
       const assignments = cellDraft.assignments.map((row, index) => {
@@ -2175,7 +2219,7 @@
         const amount = laborAmount(row);
         return `
           <tr>
-            <td>${worker ? `${esc(worker.code)} · ${esc(worker.name)}` : "ไม่พบคนงาน"}</td>
+            <td>${worker ? `${esc(worker.code)} · ${esc(worker.name)}` : "ไม่พบคนงาน"} ${row.transferFrom ? `<span class="pill green">ย้ายจากงานเดิม</span>` : ""}</td>
             <td>
               <select data-draft-worker-unit="${index}">
                 <option value="full" ${row.unit === "full" ? "selected" : ""}>เต็มวัน</option>
@@ -2253,15 +2297,23 @@
       const item = getItem(period, cellDraft.itemId);
       if (!period || !item) return;
       const seen = new Set();
+      const moves = [];
       for (const row of cellDraft.assignments) {
         if (!row.workerId) return renderCellDialog("เลือกคนงานไม่ถูกต้อง");
         if (seen.has(row.workerId)) return renderCellDialog("คนงานซ้ำในช่องเดียวกัน");
         seen.add(row.workerId);
         const assigned = workerAssignedInfo(row.workerId, cellDraft.date, cellDraft);
-        if (assigned) return renderCellDialog(`คนงานนี้ถูกใช้แล้วที่หลัง ${assigned.period.building} งวด ${assigned.period.no}`);
+        if (assigned) {
+          const worker = getWorker(row.workerId);
+          if (workerListMode() !== "move") return renderCellDialog(`คนงานนี้ถูกใช้แล้วที่ ${assignedLabel(assigned)}`);
+          if (row.transferFrom !== transferToken(assigned) && (!worker || !confirmWorkerMove(worker, assigned))) return renderCellDialog("ยกเลิกการย้ายคนงาน");
+          moves.push(assigned);
+        }
       }
+      moves.forEach((assigned) => removeWorkerFromAssignment(assigned, cellDraft.date));
+      const cleanAssignments = cellDraft.assignments.map(({ transferFrom, ...row }) => row);
       setPlan(item, cellDraft.date, $("#draftPlanned")?.value || 0);
-      if (cellDraft.assignments.length) item.actual[cellDraft.date] = cellDraft.assignments;
+      if (cleanAssignments.length) item.actual[cellDraft.date] = cleanAssignments;
       else delete item.actual[cellDraft.date];
       state.machineUsage[cellDraft.building] = state.machineUsage[cellDraft.building] || {};
       if (cellDraft.machineRows.length) state.machineUsage[cellDraft.building][cellDraft.date] = cellDraft.machineRows;
@@ -2288,9 +2340,15 @@
       const hours = unit === "full" ? n(state.settings.dayHours) : unit === "half" ? n(state.settings.dayHours) / 2 : n($("#draftWorkerHours").value);
       if (!workerId) return;
       const assigned = workerAssignedInfo(workerId, cellDraft.date, cellDraft);
-      if (assigned) return renderCellDialog(`คนงานนี้ถูกใช้แล้วที่หลัง ${assigned.period.building} งวด ${assigned.period.no}`);
+      let transferFrom = "";
+      if (assigned) {
+        const worker = getWorker(workerId);
+        if (workerListMode() !== "move") return renderCellDialog(`คนงานนี้ถูกใช้แล้วที่ ${assignedLabel(assigned)}`);
+        if (!worker || !confirmWorkerMove(worker, assigned)) return renderCellDialog("ยกเลิกการย้ายคนงาน");
+        transferFrom = transferToken(assigned);
+      }
       if (cellDraft.assignments.some((row) => row.workerId === workerId)) return renderCellDialog("คนงานซ้ำในช่องเดียวกัน");
-      cellDraft.assignments.push({ workerId, unit, hours });
+      cellDraft.assignments.push({ workerId, unit, hours, transferFrom });
       renderCellDialog();
     }
 
@@ -2318,11 +2376,17 @@
     function quickAddWorker() {
       const { quick, period, item } = selectedQuickRefs();
       if (!period || !item || !quick.date) return showToast("เลือกงวด รายการ และวันที่ก่อน");
-      const workerId = quick.workerId;
+      const workerId = $('[data-quick-field="workerId"]')?.value || quick.workerId;
       if (!workerId) return showToast("เลือกคนงานก่อน");
+      quick.workerId = workerId;
       const ignore = { periodId: period.id, itemId: item.id, date: quick.date };
       const assigned = workerAssignedInfo(workerId, quick.date, ignore);
-      if (assigned) return showToast(`คนงานนี้ใช้แล้วที่หลัง ${assigned.period.building} งวด ${assigned.period.no}`);
+      if (assigned) {
+        const worker = getWorker(workerId);
+        if (workerListMode() !== "move") return showToast(`คนงานนี้ใช้แล้วที่ ${assignedLabel(assigned)}`);
+        if (!worker || !confirmWorkerMove(worker, assigned)) return;
+        removeWorkerFromAssignment(assigned, quick.date);
+      }
       if (actualEntries(item, quick.date).some((row) => row.workerId === workerId)) return showToast("คนงานนี้อยู่ในช่องนี้แล้ว");
       const plannedInput = $('[data-quick-field="planned"]');
       setPlan(item, quick.date, plannedInput ? plannedInput.value : quick.planned || 0);
@@ -2806,6 +2870,11 @@
         state.ui.fillMode = target.value;
         saveState();
         return;
+      }
+      if (target.id === "workerListModeSelect") {
+        state.ui.workerListMode = target.value;
+        saveState();
+        return renderPlan();
       }
       if (target.dataset.periodEnabled) {
         const period = getPeriod(target.dataset.periodEnabled);
