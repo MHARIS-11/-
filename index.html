@@ -314,6 +314,11 @@
       border-color: var(--actual);
       color: white;
     }
+    .pill.danger {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: white;
+    }
     .pill.green {
       background: var(--primary);
       border-color: var(--primary);
@@ -324,6 +329,171 @@
       border-color: oklch(0.82 0.13 82);
       color: oklch(0.28 0.055 82);
     }
+    .dashboard-shell {
+      display: grid;
+      gap: 14px;
+    }
+    .dashboard-hero {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, oklch(0.965 0.018 160), oklch(0.99 0.004 160));
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+    .dashboard-hero-main {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .dashboard-hero h2 {
+      font-size: 20px;
+    }
+    .dashboard-kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+    }
+    .dashboard-kpi {
+      border: 1px solid oklch(0.84 0.017 160);
+      border-radius: var(--radius);
+      background: oklch(1 0 0 / 0.78);
+      padding: 10px;
+    }
+    .dashboard-kpi span,
+    .dashboard-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .dashboard-kpi strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 22px;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-kpi.danger {
+      border-color: oklch(0.78 0.12 28);
+      background: oklch(0.97 0.035 28);
+    }
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.9fr) minmax(360px, 1.5fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+    .dashboard-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--bg);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+    .ring {
+      width: 164px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      margin-inline: auto;
+      background:
+        radial-gradient(circle at center, white 0 56%, transparent 57%),
+        conic-gradient(var(--primary) calc(var(--pct) * 1%), var(--surface-2) 0);
+      border: 1px solid var(--line);
+    }
+    .ring strong {
+      font-size: 28px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .ring span { text-align: center; }
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 10px;
+    }
+    .comparison-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      background: var(--surface);
+      display: grid;
+      gap: 8px;
+    }
+    .comparison-card header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .comparison-card strong {
+      font-size: 20px;
+      font-variant-numeric: tabular-nums;
+    }
+    .budget-bar,
+    .cost-stack {
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+    }
+    .budget-bar span,
+    .cost-stack span {
+      display: block;
+      height: 100%;
+      width: min(100%, calc(var(--pct) * 1%));
+      background: var(--primary);
+    }
+    .budget-bar.warning span { background: var(--warning); }
+    .budget-bar.danger span { background: var(--actual); }
+    .cost-stack {
+      display: flex;
+    }
+    .cost-stack span { width: calc(var(--pct) * 1%); min-width: 0; }
+    .cost-stack .labor { background: var(--actual); }
+    .cost-stack .machine { background: oklch(0.62 0.12 235); }
+    .cost-stack .manual { background: var(--warning); }
+    .top-list {
+      display: grid;
+      gap: 8px;
+    }
+    .top-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+    }
+    .top-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .top-row strong {
+      overflow-wrap: anywhere;
+    }
+    .period-overview th,
+    .period-overview td {
+      white-space: nowrap;
+    }
+    .period-overview td:nth-child(3) {
+      white-space: normal;
+      min-width: 220px;
+    }
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: inline-block;
+      margin-right: 6px;
+    }
+    .status-dot.warning { background: var(--warning); }
+    .status-dot.danger { background: var(--actual); }
     .plan-shell {
       display: grid;
       gap: 12px;
@@ -379,7 +549,7 @@
       background: var(--bg);
     }
     .work-table {
-      min-width: 2100px;
+      min-width: 3700px;
       border-collapse: separate;
       border-spacing: 0;
       table-layout: fixed;
@@ -409,9 +579,9 @@
     .work-table .col-building { width: 70px; left: 0; }
     .work-table .col-period { width: 96px; left: 70px; }
     .work-table .col-item { width: 210px; left: 166px; }
-    .work-table .col-value { width: 96px; left: 376px; text-align: right; }
-    .work-table .date-cell { width: 32px; min-width: 32px; }
-    .work-table .month-cell { height: 24px; font-size: 11px; }
+    .work-table .col-value { width: 112px; left: 376px; text-align: right; }
+    .work-table .date-cell { width: 46px; min-width: 46px; }
+    .work-table .month-cell { height: 24px; font-size: 11px; text-align: center; }
     .work-table .day-cell { height: 26px; font-size: 11px; }
     .work-table .building-row td {
       background: oklch(0.985 0.025 28);
@@ -434,10 +604,14 @@
       border-radius: 0;
       padding: 2px;
       background: white;
-      font-size: 10px;
+      font-size: 10.5px;
       line-height: 1;
+      touch-action: manipulation;
     }
     .work-table .date-btn:hover { outline: 2px solid var(--primary-2); outline-offset: -2px; }
+    .work-table .date-btn[draggable="true"] { cursor: grab; }
+    .work-table .date-btn.drag-source { outline: 2px solid var(--primary); outline-offset: -2px; }
+    .work-table .date-btn.drag-target { outline: 2px solid var(--warning); outline-offset: -2px; }
     .work-table .date-btn.actual { background: var(--actual-soft); }
     .work-table .date-btn .plan-line.has-plan {
       background: oklch(0.88 0.08 235);
@@ -459,12 +633,16 @@
       display: grid;
       place-items: center;
       font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: visible;
     }
-    .cost-line { color: var(--muted); font-size: 9px; }
+    .cost-line { color: var(--muted); font-size: 9.5px; }
     .summary-row td {
       background: var(--surface-2);
       height: 28px;
       font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      font-size: 11px;
     }
     .summary-row .sticky { font-weight: 800; text-align: right; }
     .item-list {
@@ -588,8 +766,10 @@
       .topbar { display: grid; align-items: stretch; }
       .mobile-tabs { display: block; }
       .content { padding: 12px; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .dashboard-hero { padding: 12px; }
       .plan-grid { max-height: calc(100vh - 260px); }
-      .work-table { min-width: 1500px; }
+      .work-table { min-width: 3650px; }
       .work-table .sticky {
         position: static;
         left: auto;
@@ -602,7 +782,7 @@
       .work-table .col-period { width: 74px; }
       .work-table .col-item { width: 180px; }
       .work-table .col-value { width: 82px; }
-      .work-table .date-cell { width: 36px; min-width: 36px; }
+      .work-table .date-cell { width: 46px; min-width: 46px; }
     }
     @media (max-width: 560px) {
       .topbar { padding: 10px 12px; }
@@ -698,6 +878,7 @@
 
     let activeTab = "dashboard";
     let cellDraft = null;
+    let dragCopySource = null;
     let toastTimer = null;
 
     function makePlan() { return {}; }
@@ -786,9 +967,9 @@
           { id: "h_2026_07_28", date: "2026-07-28", name: "วันหยุดบริษัท" }
         ],
         periods: [
-          { id: "p_g_51", building: "G", no: "5.1", title: "งวดงานที่ 5.1", description: "ได้ทำงานโครงสร้างเสา ชั้น 1 และคาน + พื้น ค.ส.ล. ชั้น 2 แล้วเสร็จ", status: "กำลังทำ", items: [gSteel, gForm, gConcrete] },
-          { id: "p_i_1", building: "I", no: "1", title: "งวดงานที่ 1", description: "ได้ทำงานโครงสร้างรั้ว ค.ส.ล. แล้วเสร็จ 50%", status: "กำลังทำ", items: [iFence] },
-          { id: "p_i_9", building: "I", no: "9", title: "งวดงานที่ 9", description: "ได้ทำงานระบบสุขาภิบาลภายนอก แล้วเสร็จ 30%", status: "กำลังทำ", items: [iPipe] }
+          { id: "p_g_51", building: "G", no: "5.1", title: "งวดงานที่ 5.1", description: "ได้ทำงานโครงสร้างเสา ชั้น 1 และคาน + พื้น ค.ส.ล. ชั้น 2 แล้วเสร็จ", status: "กำลังทำ", periodValue: 376716.5, items: [gSteel, gForm, gConcrete] },
+          { id: "p_i_1", building: "I", no: "1", title: "งวดงานที่ 1", description: "ได้ทำงานโครงสร้างรั้ว ค.ส.ล. แล้วเสร็จ 50%", status: "กำลังทำ", periodValue: 172233.8, items: [iFence] },
+          { id: "p_i_9", building: "I", no: "9", title: "งวดงานที่ 9", description: "ได้ทำงานระบบสุขาภิบาลภายนอก แล้วเสร็จ 30%", status: "กำลังทำ", periodValue: 79800, items: [iPipe] }
         ],
         machineUsage: {
           G: {},
@@ -804,19 +985,46 @@
     function loadState() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return createDefaultState();
+        if (!raw) return normalizeState(createDefaultState());
         const parsed = JSON.parse(raw);
-        if (!parsed.version) return createDefaultState();
-        parsed.settings.dayHours = parsed.settings.dayHours || 9;
-        parsed.manual.GI = parsed.manual.GI || { contractLaborCost: 0, costToUpdate: 0, note: "" };
-        parsed.machineUsage = parsed.machineUsage || { G: {}, I: {} };
-        parsed.machineUsage.G = parsed.machineUsage.G || {};
-        parsed.machineUsage.I = parsed.machineUsage.I || {};
-        return parsed;
+        if (!parsed.version) return normalizeState(createDefaultState());
+        return normalizeState(parsed);
       } catch (error) {
         console.warn(error);
-        return createDefaultState();
+        return normalizeState(createDefaultState());
       }
+    }
+
+    function normalizeState(next) {
+      next.settings = next.settings || {};
+      next.settings.dayHours = next.settings.dayHours || 9;
+      next.manual = next.manual || {};
+      next.manual.G = next.manual.G || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+      next.manual.I = next.manual.I || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+      next.manual.GI = next.manual.GI || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+      next.workers = Array.isArray(next.workers) ? next.workers : [];
+      next.machines = Array.isArray(next.machines) ? next.machines : [];
+      next.holidays = Array.isArray(next.holidays) ? next.holidays : [];
+      next.periods = Array.isArray(next.periods) ? next.periods : [];
+      next.periods.forEach((period) => {
+        period.items = Array.isArray(period.items) ? period.items : [];
+        period.items.forEach((item) => {
+          item.plan = item.plan || {};
+          item.actual = item.actual || {};
+          item.laborValue = n(item.laborValue);
+          item.progressPct = n(item.progressPct);
+        });
+        if (period.periodValue === undefined || period.periodValue === null || period.periodValue === "") {
+          period.periodValue = period.items.reduce((sum, item) => sum + n(item.laborValue), 0);
+        } else {
+          period.periodValue = n(period.periodValue);
+        }
+      });
+      next.machineUsage = next.machineUsage || { G: {}, I: {} };
+      next.machineUsage.G = next.machineUsage.G || {};
+      next.machineUsage.I = next.machineUsage.I || {};
+      next.ui = next.ui || {};
+      return next;
     }
 
     let state = loadState();
@@ -907,8 +1115,10 @@
       const dates = getDates();
       if (!dates.includes(quick.date)) quick.date = dates.includes(state.settings.updateDate) ? state.settings.updateDate : dates[0] || "";
       if (!state.workers.some((worker) => worker.id === quick.workerId)) quick.workerId = state.workers[0]?.id || "";
+      if (!state.machines.some((machine) => machine.id === quick.machineId)) quick.machineId = state.machines[0]?.id || "";
       if (!["full", "half", "hours"].includes(quick.unit)) quick.unit = "full";
       if (!quick.hours) quick.hours = state.settings.dayHours;
+      if (quick.machineAmount === undefined || quick.machineAmount === null || quick.machineAmount === "") quick.machineAmount = getMachine(quick.machineId)?.dailyCost || 0;
       return quick;
     }
 
@@ -970,8 +1180,36 @@
       return periodsForView(view).reduce((sum, period) => sum + period.items.reduce((inner, item) => inner + n(item.laborValue), 0), 0);
     }
 
+    function periodLaborValue(period) {
+      return (period?.items || []).reduce((sum, item) => sum + n(item.laborValue), 0);
+    }
+
+    function periodPlanUnits(period) {
+      return (period?.items || []).reduce((sum, item) => sum + Object.values(item.plan || {}).reduce((inner, value) => inner + n(value), 0), 0);
+    }
+
+    function periodActualUnits(period) {
+      return (period?.items || []).reduce((sum, item) => sum + Object.keys(item.actual || {}).reduce((inner, date) => inner + itemActualUnits(item, date), 0), 0);
+    }
+
+    function periodLaborActual(period) {
+      const dates = getDates().filter((date) => date <= state.settings.updateDate);
+      return (period?.items || []).reduce((sum, item) => sum + dates.reduce((inner, date) => inner + itemLaborCost(item, date), 0), 0);
+    }
+
+    function totalPeriodValue(view) {
+      return periodsForView(view).reduce((sum, period) => sum + n(period.periodValue), 0);
+    }
+
+    function costStatus(ratio) {
+      if (ratio >= 1) return "danger";
+      if (ratio >= 0.85) return "warning";
+      return "normal";
+    }
+
     function summaryFor(view) {
       const dates = getDates().filter((date) => date <= state.settings.updateDate);
+      const periodValue = totalPeriodValue(view);
       const laborValue = totalLaborValue(view);
       const laborActual = dates.reduce((sum, date) => sum + totalLaborCost(view, date), 0);
       const machineActual = dates.reduce((sum, date) => sum + totalMachineCost(view, date), 0);
@@ -980,11 +1218,14 @@
       const manual = state.manual[view] || { contractLaborCost: 0, costToUpdate: 0, note: "" };
       return {
         view,
+        periodValue,
         laborValue,
         control,
         laborActual,
         machineActual,
         total,
+        balance: control - total,
+        costRatio: control ? total / control : 0,
         currentRatio: laborValue ? total / laborValue : 0,
         manual,
         manualRatio: n(manual.contractLaborCost) ? n(manual.costToUpdate) / n(manual.contractLaborCost) : 0
@@ -1044,31 +1285,163 @@
 
     function renderDashboard() {
       const el = $("#tab-dashboard");
-      const cards = ["G", "I", "GI"].map((view) => {
+      const main = summaryFor("GI");
+      const balanceClass = main.balance < 0 ? "danger" : "";
+      const kpis = [
+        ["มูลค่างวดงานรวม", money(main.periodValue, 0)],
+        ["มูลค่าค่าแรงรวม", money(main.laborValue, 0)],
+        [`ค่าแรงควบคุม ${money(state.settings.controlPercent, 0)}%`, money(main.control, 0)],
+        ["ค่าแรงจริงสะสม", money(main.laborActual, 0)],
+        ["ค่าเครื่องจักรสะสม", money(main.machineActual, 0)],
+        [main.balance < 0 ? "เกินงบควบคุม" : "คงเหลืองบควบคุม", money(Math.abs(main.balance), 0)]
+      ];
+      const comparison = ["G", "I", "GI"].map((view) => {
         const s = summaryFor(view);
         const label = view === "GI" ? "รวม G+I" : `หลัง ${view}`;
+        const ratio = Math.round(s.costRatio * 100);
+        const status = costStatus(s.costRatio);
         return `
-          <div class="panel">
-            <div class="panel-head">
-              <h2>${label}</h2>
-              <span class="pill ${view === "GI" ? "green" : ""}">${money(s.currentRatio * 100, 2)}%</span>
-            </div>
-            <div class="panel-body metric-grid">
-              <div class="metric"><span>มูลค่าค่าแรง 100%</span><strong>${money(s.laborValue, 0)}</strong></div>
-              <div class="metric"><span>ค่าแรงควบคุม ${money(state.settings.controlPercent, 0)}%</span><strong>${money(s.control, 0)}</strong></div>
-              <div class="metric"><span>ค่าแรงสะสม</span><strong>${money(s.laborActual, 0)}</strong></div>
-              <div class="metric"><span>ค่าเครื่องจักรสะสม</span><strong>${money(s.machineActual, 0)}</strong></div>
-              <div class="metric"><span>(A) + (B)</span><strong>${money(s.total, 0)}</strong></div>
-              <div class="metric"><span>ยอด manual</span><strong>${money(s.manual.costToUpdate, 0)}</strong></div>
+          <div class="comparison-card">
+            <header>
+              <h3>${label}</h3>
+              <span class="pill ${status === "danger" ? "red" : status === "warning" ? "amber" : "green"}">${money(ratio, 0)}%</span>
+            </header>
+            <div class="budget-bar ${status}" style="--pct:${Math.min(100, ratio)}"><span></span></div>
+            <div class="metric-grid">
+              <div><span>ค่าแรงจริง</span><strong>${money(s.laborActual, 0)}</strong></div>
+              <div><span>เครื่องจักร</span><strong>${money(s.machineActual, 0)}</strong></div>
+              <div><span>งบควบคุม</span><strong>${money(s.control, 0)}</strong></div>
+              <div><span>${s.balance < 0 ? "เกิน" : "คงเหลือ"}</span><strong>${money(Math.abs(s.balance), 0)}</strong></div>
             </div>
           </div>
         `;
       }).join("");
+      const mixTotal = main.laborActual + main.machineActual + n(main.manual.costToUpdate);
+      const mix = {
+        labor: mixTotal ? main.laborActual / mixTotal * 100 : 0,
+        machine: mixTotal ? main.machineActual / mixTotal * 100 : 0,
+        manual: mixTotal ? n(main.manual.costToUpdate) / mixTotal * 100 : 0
+      };
+      const periodRows = periodsForView("GI").map((period) => {
+        const laborValue = periodLaborValue(period);
+        const laborActual = periodLaborActual(period);
+        const ratio = laborValue ? laborActual / laborValue : 0;
+        const status = costStatus(ratio);
+        return `
+          <tr>
+            <td><span class="status-dot ${status === "normal" ? "" : status}"></span>หลัง ${period.building}</td>
+            <td>งวด ${esc(period.no)}</td>
+            <td>${esc(period.title)}</td>
+            <td class="num">${money(period.periodValue, 0)}</td>
+            <td class="num">${money(laborValue, 0)}</td>
+            <td class="num">${money(laborActual, 0)}</td>
+            <td class="num">${money(ratio * 100, 1)}%</td>
+          </tr>
+        `;
+      }).join("");
+      const updateDates = getDates().filter((date) => date <= state.settings.updateDate);
+      const topLabor = state.periods.flatMap((period) => period.items.map((item) => {
+        const amount = updateDates.reduce((sum, date) => sum + itemLaborCost(item, date), 0);
+        return { label: `หลัง ${period.building} งวด ${period.no} · ${item.name}`, amount };
+      })).filter((row) => row.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, 5);
+      const machineTotals = new Map();
+      for (const building of ["G", "I"]) {
+        Object.entries(state.machineUsage?.[building] || {}).forEach(([date, rows]) => {
+          if (date > state.settings.updateDate) return;
+          rows.forEach((row) => {
+            const machine = getMachine(row.machineId);
+            const key = row.machineId || row.id;
+            const current = machineTotals.get(key) || { label: machine?.name || "ไม่พบเครื่องจักร", amount: 0 };
+            current.amount += n(row.amount);
+            machineTotals.set(key, current);
+          });
+        });
+      }
+      const topMachines = [...machineTotals.values()].filter((row) => row.amount > 0).sort((a, b) => b.amount - a.amount).slice(0, 5);
+      const topRows = (rows, emptyText) => rows.length ? rows.map((row) => `
+        <div class="top-row">
+          <strong>${esc(row.label)}</strong>
+          <span class="pill">${money(row.amount, 0)}</span>
+        </div>
+      `).join("") : `<p class="muted">${emptyText}</p>`;
 
       const manualView = state.ui.manualView || "GI";
       const manual = state.manual[manualView] || { contractLaborCost: 0, costToUpdate: 0, note: "" };
       el.innerHTML = `
-        <div class="section">
+        <div class="dashboard-shell">
+          <div class="dashboard-hero">
+            <div class="dashboard-hero-main">
+              <div>
+                <h2>${esc(state.settings.projectName)} Cost Overview</h2>
+                <p class="muted">อัปเดต ${esc(dateLabel(state.settings.updateDate))} · ช่วงแผน ${esc(dateLabel(state.settings.startDate))} ถึง ${esc(dateLabel(state.settings.endDate))}</p>
+              </div>
+              <span class="pill ${balanceClass || "green"}">${main.balance < 0 ? "เกินงบ" : "อยู่ในงบ"}</span>
+            </div>
+            <div class="dashboard-kpis">
+              ${kpis.map(([label, value], index) => `
+                <div class="dashboard-kpi ${index === 5 ? balanceClass : ""}">
+                  <span>${label}</span>
+                  <strong>${value}</strong>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <div class="dashboard-card">
+              <h2>การใช้งบควบคุม</h2>
+              <div class="ring" style="--pct:${Math.min(100, Math.round(main.costRatio * 100))}">
+                <div>
+                  <strong>${money(main.costRatio * 100, 1)}%</strong>
+                  <span>จากงบควบคุม</span>
+                </div>
+              </div>
+              <div>
+                <span>ค่าใช้จ่ายรวม</span>
+                <strong>${money(main.total, 0)} / ${money(main.control, 0)}</strong>
+              </div>
+              <div>
+                <span>สัดส่วนต้นทุน</span>
+                <div class="cost-stack">
+                  <span class="labor" style="--pct:${mix.labor}"></span>
+                  <span class="machine" style="--pct:${mix.machine}"></span>
+                  <span class="manual" style="--pct:${mix.manual}"></span>
+                </div>
+              </div>
+              <div class="inline-list">
+                <span class="pill red">ค่าแรง ${money(main.laborActual, 0)}</span>
+                <span class="pill">เครื่องจักร ${money(main.machineActual, 0)}</span>
+                <span class="pill amber">manual ${money(main.manual.costToUpdate, 0)}</span>
+              </div>
+            </div>
+            <div class="dashboard-card">
+              <h2>เปรียบเทียบอาคาร</h2>
+              <div class="comparison-grid">${comparison}</div>
+            </div>
+          </div>
+
+          <div class="split">
+            <div class="dashboard-card">
+              <div class="panel-head" style="padding:0;border:0">
+                <h2>ภาพรวมงวดงาน</h2>
+                <span class="pill">${state.periods.length} งวด</span>
+              </div>
+              <div class="table-wrap">
+                <table class="period-overview">
+                  <thead><tr><th>อาคาร</th><th>งวด</th><th>ชื่อ</th><th class="num">มูลค่างวด</th><th class="num">ค่าแรงรวม</th><th class="num">ใช้แล้ว</th><th class="num">%</th></tr></thead>
+                  <tbody>${periodRows}</tbody>
+                </table>
+              </div>
+            </div>
+            <div class="dashboard-card">
+              <h2>Top Cost</h2>
+              <h3>ค่าแรงสูงสุด</h3>
+              <div class="top-list">${topRows(topLabor, "ยังไม่มีค่าแรงจริงสะสม")}</div>
+              <h3>เครื่องจักรสูงสุด</h3>
+              <div class="top-list">${topRows(topMachines, "ยังไม่มีค่าเครื่องจักรสะสม")}</div>
+            </div>
+          </div>
+
           <div class="split">
             <div class="panel">
               <div class="panel-head"><h2>ตั้งค่าโครงการ</h2></div>
@@ -1097,7 +1470,6 @@
               </div>
             </div>
           </div>
-          <div class="split">${cards}</div>
         </div>
       `;
     }
@@ -1133,6 +1505,7 @@
       const currentPlanned = item ? n(item.plan?.[quick.date]) : 0;
       const currentUnits = item ? itemActualUnits(item, quick.date) : 0;
       const currentLabor = item ? itemLaborCost(item, quick.date) : 0;
+      const currentMachine = totalMachineCost(quick.building, quick.date);
       const ignore = item ? { periodId: period.id, itemId: item.id, date: quick.date } : null;
       const usedInCell = new Set(item ? actualEntries(item, quick.date).map((row) => row.workerId) : []);
       const workerOptions = state.workers.map((worker) => {
@@ -1145,6 +1518,7 @@
         const worker = getWorker(row.workerId);
         return `<span class="pill red">${esc(worker?.code || "")} ${esc(worker?.name || "")} ${qty(laborUnits(row))} แรง</span>`;
       }).join("") : "";
+      const machineOptions = state.machines.map((machine) => `<option value="${machine.id}" ${quick.machineId === machine.id ? "selected" : ""}>${esc(machine.name)} · ${money(machine.dailyCost, 0)}</option>`).join("");
       return `
         <div class="quick-entry">
           <div class="panel-head">
@@ -1167,16 +1541,20 @@
                 <option value="hours" ${quick.unit === "hours" ? "selected" : ""}>รายชั่วโมง</option>
               </select></label>
               <label><span>ชั่วโมง</span><input type="number" min="0" step="0.5" data-quick-field="hours" value="${esc(quick.hours)}"></label>
+              <label><span>เครื่องจักร</span><select data-quick-field="machineId">${machineOptions}</select></label>
+              <label><span>ค่าเครื่องจักร</span><input type="number" min="0" step="0.01" data-quick-field="machineAmount" value="${esc(quick.machineAmount)}"></label>
             </div>
             <div class="quick-summary">
               <div class="metric"><span>แรงจริงในช่องนี้</span><strong>${qty(currentUnits) || "0"}</strong></div>
               <div class="metric"><span>มูลค่าค่าแรง</span><strong>${money(currentLabor, 0)}</strong></div>
+              <div class="metric"><span>เครื่องจักรวันนี้</span><strong>${money(currentMachine, 0)}</strong></div>
               <div class="metric"><span>คนงานที่เลือกแล้ว</span><strong>${actualEntries(item || { actual: {} }, quick.date).length}</strong></div>
             </div>
             <div class="inline-list">${existing || `<span class="muted">ยังไม่มีคนงานในวันนี้</span>`}</div>
             <div class="quick-actions">
               <button class="primary" data-action="quick-add-worker">เพิ่มคนงานและบันทึก</button>
               <button data-action="quick-save-plan">บันทึกจำนวนแผน</button>
+              <button data-action="quick-add-machine">เพิ่มเครื่องจักร</button>
               <button data-action="quick-open-detail">เปิดรายละเอียดช่องนี้</button>
             </div>
           </div>
@@ -1184,9 +1562,19 @@
       `;
     }
 
+    function monthGroups(dates) {
+      const groups = [];
+      dates.forEach((date) => {
+        const label = monthLabel(date);
+        const last = groups[groups.length - 1];
+        if (last?.label === label) last.count++;
+        else groups.push({ label, count: 1 });
+      });
+      return groups;
+    }
+
     function buildPlanTable(view, dates) {
       const editable = view !== "GI";
-      const months = dates.map((date, index) => index === 0 || dayNumber(date) === 1 ? monthLabel(date) : "");
       let body = "";
       for (const building of buildingsForView(view)) {
         const periods = state.periods.filter((period) => period.building === building);
@@ -1206,7 +1594,7 @@
                   const cost = itemLaborCost(item, date);
                   const workClass = units > 0 ? "actual" : "";
                   const holidayClass = isHoliday(date) ? "holiday" : "";
-                  const attrs = editable ? `data-action="edit-cell" data-period-id="${period.id}" data-item-id="${item.id}" data-date="${date}"` : "";
+                  const attrs = editable ? `data-action="edit-cell" data-period-id="${period.id}" data-item-id="${item.id}" data-date="${date}" draggable="true" title="คลิกเพื่อแก้ไข หรือลากเพื่อคัดลอกช่วงวัน"` : "";
                   return `<td class="date-cell ${holidayClass}">
                     <button class="date-btn ${workClass} ${editable ? "" : "readonly"}" ${attrs}>
                       <span class="plan-line ${planned ? "has-plan" : ""}">${planned ? qty(planned) : ""}</span>
@@ -1240,7 +1628,7 @@
               <th class="sticky col-period">งวด</th>
               <th class="sticky col-item">รายการ</th>
               <th class="sticky col-value">มูลค่า</th>
-              ${months.map((month, index) => `<th class="month-cell date-cell ${isHoliday(dates[index]) ? "holiday" : ""}">${esc(month)}</th>`).join("")}
+              ${monthGroups(dates).map((group) => `<th class="month-cell" colspan="${group.count}">${esc(group.label)}</th>`).join("")}
             </tr>
             <tr>
               <th class="sticky col-building"></th>
@@ -1279,6 +1667,7 @@
                 <label><span>เลขงวด</span><input id="newPeriodNo" placeholder="เช่น 5.1"></label>
                 <label><span>ชื่องวด</span><input id="newPeriodTitle" placeholder="งวดงานที่ ..."></label>
                 <label><span>สถานะ</span><input id="newPeriodStatus" value="ยังไม่เริ่ม"></label>
+                <label><span>มูลค่างวดงาน</span><input id="newPeriodValue" type="number" min="0" step="0.01"></label>
                 <label style="grid-column:1/-1"><span>รายละเอียด</span><textarea id="newPeriodDescription"></textarea></label>
                 <button class="primary" data-action="add-period">เพิ่มงวด</button>
               </div>
@@ -1300,6 +1689,8 @@
     }
 
     function periodCard(period) {
+      const laborValue = periodLaborValue(period);
+      const ratio = n(period.periodValue) ? laborValue / n(period.periodValue) * 100 : 0;
       return `
         <div class="item-card" data-period-card="${period.id}">
           <div class="item-card-head">
@@ -1311,15 +1702,21 @@
             <button class="danger" data-action="delete-period" data-period-id="${period.id}">ลบงวด</button>
           </div>
           <div class="panel-body">
+            <div class="quick-summary" style="margin-bottom:10px">
+              <div class="metric"><span>มูลค่างวดงาน</span><strong>${money(period.periodValue, 0)}</strong></div>
+              <div class="metric"><span>มูลค่าค่าแรงรวม</span><strong>${money(laborValue, 0)}</strong></div>
+              <div class="metric"><span>ค่าแรงเทียบงวด</span><strong>${money(ratio, 1)}%</strong></div>
+            </div>
             <div class="form-grid">
               <label><span>เลขงวด</span><input data-period-field="no" data-period-id="${period.id}" value="${esc(period.no)}"></label>
               <label><span>ชื่องวด</span><input data-period-field="title" data-period-id="${period.id}" value="${esc(period.title)}"></label>
               <label><span>สถานะ</span><input data-period-field="status" data-period-id="${period.id}" value="${esc(period.status)}"></label>
+              <label><span>มูลค่างวดงาน</span><input type="number" step="0.01" data-period-field="periodValue" data-period-id="${period.id}" value="${esc(period.periodValue)}"></label>
               <label style="grid-column:1/-1"><span>รายละเอียด</span><textarea data-period-field="description" data-period-id="${period.id}">${esc(period.description)}</textarea></label>
             </div>
             <div class="table-wrap" style="margin-top:10px">
               <table>
-                <thead><tr><th>รายการ</th><th class="num">มูลค่า</th><th class="num">%</th><th></th></tr></thead>
+                <thead><tr><th>รายการ</th><th class="num">มูลค่าค่าแรง</th><th class="num">%</th><th></th></tr></thead>
                 <tbody>
                   ${period.items.map((item) => `
                     <tr>
@@ -1341,13 +1738,23 @@
       const el = $("#tab-workers");
       el.innerHTML = `
         <div class="section">
-          <div class="panel">
-            <div class="panel-head"><h2>เพิ่มคนงาน</h2><span class="pill">เต็มวัน ${money(state.settings.dayHours, 0)} ชม.</span></div>
-            <div class="panel-body form-grid">
-              <label><span>รหัสพนักงาน</span><input id="workerCode" placeholder="W001"></label>
-              <label><span>ชื่อ-สกุล</span><input id="workerName"></label>
-              <label><span>ค่าแรงเต็มวัน</span><input id="workerWage" type="number" min="0" step="0.01"></label>
-              <button class="primary" data-action="add-worker">เพิ่มคนงาน</button>
+          <div class="split">
+            <div class="panel">
+              <div class="panel-head"><h2>เพิ่มคนงาน</h2><span class="pill">เต็มวัน ${money(state.settings.dayHours, 0)} ชม.</span></div>
+              <div class="panel-body form-grid">
+                <label><span>รหัสพนักงาน</span><input id="workerCode" placeholder="W001"></label>
+                <label><span>ชื่อ-สกุล</span><input id="workerName"></label>
+                <label><span>ค่าแรงเต็มวัน</span><input id="workerWage" type="number" min="0" step="0.01"></label>
+                <button class="primary" data-action="add-worker">เพิ่มคนงาน</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2>Import คนงาน</h2><span class="pill">รหัส / ชื่อ-สกุล / ค่าแรง</span></div>
+              <div class="panel-body form-grid">
+                <label style="grid-column:1/-1"><span>ไฟล์ Excel หรือ CSV</span><input id="workerImportFile" type="file" accept=".xlsx,.csv,.tsv,.txt"></label>
+                <button class="primary" data-action="import-workers">นำเข้าคนงาน</button>
+                <button data-action="download-worker-template">ดาวน์โหลดตัวอย่าง CSV</button>
+              </div>
             </div>
           </div>
           <div class="table-wrap">
@@ -1545,6 +1952,7 @@
           </tr>
         `;
       }).join("");
+      const defaultMachineAmount = n(getMachine(state.machines[0]?.id)?.dailyCost);
       const units = cellDraft.assignments.reduce((sum, row) => sum + laborUnits(row), 0);
       const labor = cellDraft.assignments.reduce((sum, row) => sum + laborAmount(row), 0);
       const machines = cellDraft.machineRows.reduce((sum, row) => sum + n(row.amount), 0);
@@ -1578,7 +1986,7 @@
           <div class="panel-body">
             <div class="form-grid" style="margin-bottom:10px">
               <label><span>เลือกเครื่องจักร</span><select id="draftMachineSelect">${machineOptions}</select></label>
-              <label><span>ยอดต่อวัน</span><input type="number" min="0" step="0.01" id="draftMachineAmount"></label>
+              <label><span>ยอดต่อวัน</span><input type="number" min="0" step="0.01" id="draftMachineAmount" value="${esc(defaultMachineAmount)}"></label>
               <button data-action="add-draft-machine" class="primary">เพิ่มเครื่องจักร</button>
             </div>
             <div class="table-wrap">
@@ -1679,6 +2087,20 @@
       showToast("เพิ่มคนงานจริงและคำนวณค่าแรงแล้ว");
     }
 
+    function quickAddMachine() {
+      const { quick } = selectedQuickRefs();
+      if (!quick.building || !quick.date) return showToast("เลือกอาคารและวันที่ก่อน");
+      const machine = getMachine(quick.machineId);
+      if (!machine) return showToast("เลือกเครื่องจักรก่อน");
+      state.machineUsage[quick.building] = state.machineUsage[quick.building] || {};
+      const rows = state.machineUsage[quick.building][quick.date] || [];
+      rows.push({ id: uid("mu"), machineId: machine.id, amount: n(quick.machineAmount || machine.dailyCost) });
+      state.machineUsage[quick.building][quick.date] = rows;
+      saveState();
+      renderPlan();
+      showToast("เพิ่มเครื่องจักรและค่าเครื่องจักรแล้ว");
+    }
+
     function quickOpenDetail() {
       const { quick, period, item } = selectedQuickRefs();
       if (!period || !item || !quick.date) return showToast("เลือกงวด รายการ และวันที่ก่อน");
@@ -1709,9 +2131,116 @@
         if (value === "full") quick.hours = n(state.settings.dayHours);
         if (value === "half") quick.hours = n(state.settings.dayHours) / 2;
       }
-      if (field === "planned" || field === "hours") quick[field] = n(value);
+      if (field === "machineId") quick.machineAmount = getMachine(value)?.dailyCost || 0;
+      if (field === "planned" || field === "hours" || field === "machineAmount") quick[field] = n(value);
       saveState();
       if (rerender) renderPlan();
+    }
+
+    function dateRangeBetween(start, end) {
+      const dates = getDates();
+      const a = dates.indexOf(start);
+      const b = dates.indexOf(end);
+      if (a < 0 || b < 0 || a === b) return [];
+      const step = a < b ? 1 : -1;
+      const range = [];
+      for (let i = a + step; step > 0 ? i <= b : i >= b; i += step) range.push(dates[i]);
+      return range;
+    }
+
+    function cellRefsFromButton(button) {
+      if (!button?.dataset?.periodId || !button?.dataset?.itemId || !button?.dataset?.date) return null;
+      return {
+        periodId: button.dataset.periodId,
+        itemId: button.dataset.itemId,
+        date: button.dataset.date
+      };
+    }
+
+    function hasCellData(period, item, date) {
+      return n(item.plan?.[date]) > 0
+        || actualEntries(item, date).length > 0
+        || (state.machineUsage?.[period.building]?.[date] || []).length > 0;
+    }
+
+    function copyCellRange(source, target) {
+      if (!source || !target) return;
+      if (source.periodId !== target.periodId || source.itemId !== target.itemId) {
+        showToast("ลากคัดลอกได้เฉพาะรายการเดียวกัน");
+        return;
+      }
+      const period = getPeriod(source.periodId);
+      const item = getItem(period, source.itemId);
+      if (!period || !item) return;
+      const targetDates = dateRangeBetween(source.date, target.date);
+      if (!targetDates.length) return;
+      const overwrites = targetDates.filter((date) => hasCellData(period, item, date));
+      if (overwrites.length && !confirm(`ปลายทางมีข้อมูลอยู่ ${overwrites.length} วัน ต้องการเขียนทับหรือไม่?`)) return;
+      const sourcePlan = n(item.plan?.[source.date]);
+      const sourceActual = actualEntries(item, source.date).map((row) => ({ ...row }));
+      const sourceMachines = (state.machineUsage?.[period.building]?.[source.date] || []).map((row) => ({ ...row }));
+      const conflicts = [];
+      let copied = 0;
+      targetDates.forEach((date) => {
+        const blocked = sourceActual.find((row) => workerAssignedInfo(row.workerId, date, { periodId: period.id, itemId: item.id, date }));
+        if (blocked) {
+          conflicts.push(date);
+          return;
+        }
+        setPlan(item, date, sourcePlan);
+        if (sourceActual.length) item.actual[date] = sourceActual.map((row) => ({ ...row }));
+        else delete item.actual[date];
+        state.machineUsage[period.building] = state.machineUsage[period.building] || {};
+        if (sourceMachines.length) {
+          state.machineUsage[period.building][date] = sourceMachines.map((row) => ({ ...row, id: uid("mu") }));
+        } else {
+          delete state.machineUsage[period.building][date];
+        }
+        copied++;
+      });
+      saveState();
+      renderPlan();
+      if (conflicts.length) showToast(`คัดลอก ${copied} วัน, ข้าม ${conflicts.length} วันเพราะคนงานซ้ำ`);
+      else showToast(`คัดลอกข้อมูล ${copied} วันแล้ว`);
+    }
+
+    function handleDragStart(event) {
+      const button = event.target.closest('button[data-action="edit-cell"]');
+      if (!button || button.classList.contains("readonly")) return;
+      dragCopySource = cellRefsFromButton(button);
+      button.classList.add("drag-source");
+      event.dataTransfer.effectAllowed = "copy";
+      event.dataTransfer.setData("text/plain", JSON.stringify(dragCopySource));
+    }
+
+    function handleDragOver(event) {
+      const button = event.target.closest('button[data-action="edit-cell"]');
+      if (!button || !dragCopySource) return;
+      const target = cellRefsFromButton(button);
+      if (!target || target.periodId !== dragCopySource.periodId || target.itemId !== dragCopySource.itemId) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      button.classList.add("drag-target");
+    }
+
+    function handleDragLeave(event) {
+      const button = event.target.closest('button[data-action="edit-cell"]');
+      if (button) button.classList.remove("drag-target");
+    }
+
+    function handleDrop(event) {
+      const button = event.target.closest('button[data-action="edit-cell"]');
+      if (!button || !dragCopySource) return;
+      event.preventDefault();
+      const target = cellRefsFromButton(button);
+      $$(".date-btn.drag-target").forEach((el) => el.classList.remove("drag-target"));
+      copyCellRange(dragCopySource, target);
+      dragCopySource = null;
+    }
+
+    function handleDragEnd() {
+      dragCopySource = null;
+      $$(".date-btn.drag-source, .date-btn.drag-target").forEach((el) => el.classList.remove("drag-source", "drag-target"));
     }
 
     function renderAll() {
@@ -1743,6 +2272,7 @@
       if (action === "edit-cell") return openCellEditor(button.dataset.periodId, button.dataset.itemId, button.dataset.date);
       if (action === "quick-add-worker") return quickAddWorker();
       if (action === "quick-save-plan") return quickSetPlan();
+      if (action === "quick-add-machine") return quickAddMachine();
       if (action === "quick-open-detail") return quickOpenDetail();
       if (action === "add-draft-worker") return addWorkerToDraft();
       if (action === "add-draft-machine") return addMachineToDraft();
@@ -1760,6 +2290,8 @@
       if (action === "delete-item") return deleteItem(button.dataset.periodId, button.dataset.itemId);
       if (action === "add-worker") return addWorker();
       if (action === "delete-worker") return deleteWorker(button.dataset.workerId);
+      if (action === "import-workers") return importWorkers();
+      if (action === "download-worker-template") return downloadWorkerTemplate();
       if (action === "add-machine") return addMachine();
       if (action === "delete-machine") return deleteMachine(button.dataset.machineId);
       if (action === "add-holiday") return addHoliday();
@@ -1790,12 +2322,12 @@
       }
       if (target.dataset.quickField) {
         const field = target.dataset.quickField;
-        return updateQuickField(field, target.value, !["planned", "hours"].includes(field));
+        return updateQuickField(field, target.value, !["planned", "hours", "machineAmount"].includes(field));
       }
       if (target.dataset.periodField) {
         const period = getPeriod(target.dataset.periodId);
         if (period) {
-          period[target.dataset.periodField] = target.value;
+          period[target.dataset.periodField] = target.dataset.periodField === "periodValue" ? n(target.value) : target.value;
           saveState();
           renderNav();
         }
@@ -1863,6 +2395,11 @@
         saveState();
         return renderReport();
       }
+      if (target.id === "draftMachineSelect") {
+        const amount = $("#draftMachineAmount");
+        if (amount) amount.value = getMachine(target.value)?.dailyCost || 0;
+        return;
+      }
       if (target.dataset.quickField) return updateQuickField(target.dataset.quickField, target.value, true);
       if (target.dataset.setting) return renderDashboard();
     }
@@ -1872,7 +2409,7 @@
       const no = $("#newPeriodNo").value.trim();
       const title = $("#newPeriodTitle").value.trim() || `งวดงานที่ ${no}`;
       if (!no) return showToast("กรอกเลขงวดก่อน");
-      state.periods.push({ id: uid("p"), building, no, title, description: $("#newPeriodDescription").value.trim(), status: $("#newPeriodStatus").value.trim(), items: [] });
+      state.periods.push({ id: uid("p"), building, no, title, description: $("#newPeriodDescription").value.trim(), status: $("#newPeriodStatus").value.trim(), periodValue: n($("#newPeriodValue").value), items: [] });
       saveState();
       renderPeriods();
       showToast("เพิ่มงวดแล้ว");
@@ -1979,6 +2516,254 @@
     async function copyJson() {
       await navigator.clipboard.writeText(JSON.stringify(state, null, 2));
       showToast("คัดลอก JSON แล้ว");
+    }
+
+    async function importWorkers() {
+      const file = $("#workerImportFile")?.files?.[0];
+      if (!file) return showToast("เลือกไฟล์คนงานก่อน");
+      try {
+        const rows = await readWorkerRows(file);
+        const result = importWorkerRows(rows);
+        saveState();
+        renderWorkers();
+        showToast(`นำเข้า ${result.added} เพิ่มใหม่, ${result.updated} อัปเดต`);
+      } catch (error) {
+        console.error(error);
+        showToast(error.message || "นำเข้าคนงานไม่สำเร็จ");
+      }
+    }
+
+    async function readWorkerRows(file) {
+      const name = file.name.toLowerCase();
+      if (name.endsWith(".xlsx")) return readXlsxRows(await file.arrayBuffer());
+      return parseDelimitedRows(await file.text());
+    }
+
+    function importWorkerRows(rows) {
+      const normalized = normalizeWorkerRows(rows);
+      if (!normalized.length) throw new Error("ไม่พบข้อมูลคนงานในไฟล์");
+      const byCode = new Map();
+      normalized.forEach((row) => byCode.set(row.code, row));
+      let added = 0;
+      let updated = 0;
+      byCode.forEach((row) => {
+        const existing = state.workers.find((worker) => String(worker.code).trim() === row.code);
+        if (existing) {
+          existing.name = row.name;
+          existing.dailyWage = row.dailyWage;
+          updated++;
+        } else {
+          state.workers.push({ id: uid("w"), code: row.code, name: row.name, dailyWage: row.dailyWage });
+          added++;
+        }
+      });
+      return { added, updated };
+    }
+
+    function normalizeWorkerRows(rows) {
+      const cleanRows = rows
+        .map((row) => row.map((cell) => String(cell ?? "").trim()))
+        .filter((row) => row.some(Boolean));
+      if (!cleanRows.length) return [];
+      const aliases = {
+        code: ["รหัส", "รหัสพนักงาน", "code", "employeeid", "employee code", "id"],
+        name: ["ชื่อสกุล", "ชื่อ-สกุล", "ชื่อ", "name", "fullname", "full name"],
+        wage: ["ค่าแรง", "ค่าแรงเต็มวัน", "dailywage", "daily wage", "wage", "rate"]
+      };
+      let headerIndex = -1;
+      let indexes = { code: 0, name: 1, wage: 2 };
+      cleanRows.some((row, index) => {
+        const headers = row.map(normalizeHeader);
+        const found = {};
+        Object.entries(aliases).forEach(([key, words]) => {
+          found[key] = headers.findIndex((header) => words.map(normalizeHeader).includes(header));
+        });
+        const score = Object.values(found).filter((value) => value >= 0).length;
+        if (score >= 2) {
+          headerIndex = index;
+          indexes = {
+            code: found.code >= 0 ? found.code : 0,
+            name: found.name >= 0 ? found.name : 1,
+            wage: found.wage >= 0 ? found.wage : 2
+          };
+          return true;
+        }
+        return false;
+      });
+      const start = headerIndex >= 0 ? headerIndex + 1 : 0;
+      return cleanRows.slice(start).map((row) => ({
+        code: String(row[indexes.code] || "").trim(),
+        name: String(row[indexes.name] || "").trim(),
+        dailyWage: parseMoneyValue(row[indexes.wage])
+      })).filter((row) => row.code && row.name);
+    }
+
+    function normalizeHeader(value) {
+      return String(value || "").toLowerCase().replace(/[\s._\-()]/g, "");
+    }
+
+    function parseMoneyValue(value) {
+      const cleaned = String(value ?? "").replace(/,/g, "").replace(/[^\d.-]/g, "");
+      return n(cleaned);
+    }
+
+    function parseDelimitedRows(text) {
+      const sample = text.split(/\r?\n/).slice(0, 5).join("\n");
+      const delimiter = ["\t", ",", ";"].sort((a, b) => sample.split(b).length - sample.split(a).length)[0];
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let quoted = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const next = text[i + 1];
+        if (ch === '"' && quoted && next === '"') {
+          cell += '"';
+          i++;
+        } else if (ch === '"') {
+          quoted = !quoted;
+        } else if (ch === delimiter && !quoted) {
+          row.push(cell);
+          cell = "";
+        } else if ((ch === "\n" || ch === "\r") && !quoted) {
+          if (ch === "\r" && next === "\n") i++;
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = "";
+        } else {
+          cell += ch;
+        }
+      }
+      row.push(cell);
+      if (row.some((value) => String(value).trim())) rows.push(row);
+      return rows;
+    }
+
+    async function readXlsxRows(buffer) {
+      const entries = readZipEntries(buffer);
+      const workbookXml = await zipText(entries, "xl/workbook.xml");
+      const relsXml = await zipText(entries, "xl/_rels/workbook.xml.rels");
+      const sheetPath = firstWorksheetPath(workbookXml, relsXml, entries);
+      const [sharedXml, sheetXml] = await Promise.all([
+        entries.has("xl/sharedStrings.xml") ? zipText(entries, "xl/sharedStrings.xml") : "",
+        zipText(entries, sheetPath)
+      ]);
+      const sharedStrings = parseSharedStrings(sharedXml);
+      return parseSheetRows(sheetXml, sharedStrings);
+    }
+
+    function readZipEntries(buffer) {
+      const view = new DataView(buffer);
+      const bytes = new Uint8Array(buffer);
+      const decoder = new TextDecoder("utf-8");
+      let eocd = -1;
+      for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 66000); i--) {
+        if (view.getUint32(i, true) === 0x06054b50) {
+          eocd = i;
+          break;
+        }
+      }
+      if (eocd < 0) throw new Error("อ่านไฟล์ Excel ไม่ได้");
+      const total = view.getUint16(eocd + 10, true);
+      let offset = view.getUint32(eocd + 16, true);
+      const entries = new Map();
+      for (let i = 0; i < total; i++) {
+        if (view.getUint32(offset, true) !== 0x02014b50) throw new Error("โครงไฟล์ Excel ไม่ถูกต้อง");
+        const method = view.getUint16(offset + 10, true);
+        const compressedSize = view.getUint32(offset + 20, true);
+        const fileNameLength = view.getUint16(offset + 28, true);
+        const extraLength = view.getUint16(offset + 30, true);
+        const commentLength = view.getUint16(offset + 32, true);
+        const localOffset = view.getUint32(offset + 42, true);
+        const name = decoder.decode(bytes.slice(offset + 46, offset + 46 + fileNameLength)).replace(/\\/g, "/");
+        const localNameLength = view.getUint16(localOffset + 26, true);
+        const localExtraLength = view.getUint16(localOffset + 28, true);
+        const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+        entries.set(name, { method, data: bytes.slice(dataStart, dataStart + compressedSize) });
+        offset += 46 + fileNameLength + extraLength + commentLength;
+      }
+      return entries;
+    }
+
+    async function zipText(entries, path) {
+      const entry = entries.get(path);
+      if (!entry) throw new Error(`ไม่พบ ${path} ในไฟล์ Excel`);
+      let data = entry.data;
+      if (entry.method === 8) {
+        if (!("DecompressionStream" in window)) throw new Error("เบราว์เซอร์นี้ยังอ่าน .xlsx ไม่ได้ ให้บันทึกเป็น CSV แล้วนำเข้าแทน");
+        const stream = new Blob([entry.data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+        data = new Uint8Array(await new Response(stream).arrayBuffer());
+      } else if (entry.method !== 0) {
+        throw new Error("ไฟล์ Excel ใช้วิธีบีบอัดที่ยังไม่รองรับ");
+      }
+      return new TextDecoder("utf-8").decode(data);
+    }
+
+    function parseXml(xml) {
+      const doc = new DOMParser().parseFromString(xml, "application/xml");
+      if (doc.getElementsByTagName("parsererror").length) throw new Error("อ่าน XML ในไฟล์ Excel ไม่ได้");
+      return doc;
+    }
+
+    function xmlChildren(node, localName) {
+      return [...node.getElementsByTagName("*")].filter((el) => el.localName === localName);
+    }
+
+    function firstWorksheetPath(workbookXml, relsXml, entries) {
+      const workbook = parseXml(workbookXml);
+      const rels = parseXml(relsXml);
+      const firstSheet = xmlChildren(workbook, "sheet")[0];
+      const relId = firstSheet?.getAttribute("r:id");
+      if (relId) {
+        const rel = xmlChildren(rels, "Relationship").find((row) => row.getAttribute("Id") === relId);
+        const target = rel?.getAttribute("Target") || "";
+        const path = target.startsWith("/") ? target.slice(1) : `xl/${target}`;
+        if (entries.has(path)) return path;
+      }
+      return [...entries.keys()].find((path) => /^xl\/worksheets\/sheet\d+\.xml$/.test(path)) || "xl/worksheets/sheet1.xml";
+    }
+
+    function parseSharedStrings(xml) {
+      if (!xml) return [];
+      const doc = parseXml(xml);
+      return xmlChildren(doc, "si").map((si) => xmlChildren(si, "t").map((t) => t.textContent || "").join(""));
+    }
+
+    function parseSheetRows(xml, sharedStrings) {
+      const doc = parseXml(xml);
+      return xmlChildren(doc, "row").map((rowEl) => {
+        const row = [];
+        xmlChildren(rowEl, "c").forEach((cell, fallbackIndex) => {
+          const ref = cell.getAttribute("r") || "";
+          const index = columnIndex(ref) ?? fallbackIndex;
+          const type = cell.getAttribute("t");
+          const v = xmlChildren(cell, "v")[0]?.textContent || "";
+          const inline = xmlChildren(cell, "t").map((t) => t.textContent || "").join("");
+          row[index] = type === "s" ? (sharedStrings[Number(v)] || "") : type === "inlineStr" ? inline : v;
+        });
+        return row.map((value) => value ?? "");
+      });
+    }
+
+    function columnIndex(ref) {
+      const letters = String(ref).match(/[A-Z]+/i)?.[0];
+      if (!letters) return null;
+      return [...letters.toUpperCase()].reduce((sum, ch) => sum * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+    }
+
+    function downloadWorkerTemplate() {
+      const rows = [
+        ["รหัส", "ชื่อ-สกุล", "ค่าแรง"],
+        ["1700", "jame", "650"],
+        ["1701", "alex", "513"]
+      ];
+      const csv = "\ufeff" + rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      a.download = "worker-import-template.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
     }
 
     function importJson() {
@@ -2206,6 +2991,11 @@
     document.addEventListener("click", handleClick);
     document.addEventListener("input", handleInput);
     document.addEventListener("change", handleChange);
+    document.addEventListener("dragstart", handleDragStart);
+    document.addEventListener("dragover", handleDragOver);
+    document.addEventListener("dragleave", handleDragLeave);
+    document.addEventListener("drop", handleDrop);
+    document.addEventListener("dragend", handleDragEnd);
     $("#saveCellBtn").addEventListener("click", saveCellDraft);
     $("#clearCellBtn").addEventListener("click", clearCellDraft);
 
