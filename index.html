@@ -335,6 +335,42 @@
       gap: 10px;
       flex-wrap: wrap;
     }
+    .quick-entry {
+      border: 1px solid oklch(0.82 0.05 160);
+      border-radius: var(--radius);
+      background: var(--primary-soft);
+      overflow: hidden;
+    }
+    .quick-entry .panel-head {
+      background: oklch(0.96 0.02 160);
+    }
+    .quick-entry .panel-body {
+      display: grid;
+      gap: 12px;
+    }
+    .quick-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .quick-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+    }
+    .quick-summary .metric {
+      background: var(--bg);
+      padding: 10px;
+    }
+    .quick-summary .metric strong {
+      font-size: 18px;
+    }
+    .scroll-hint {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
     .plan-grid {
       max-height: calc(100vh - 230px);
       overflow: auto;
@@ -403,6 +439,11 @@
     }
     .work-table .date-btn:hover { outline: 2px solid var(--primary-2); outline-offset: -2px; }
     .work-table .date-btn.actual { background: var(--actual-soft); }
+    .work-table .date-btn .plan-line.has-plan {
+      background: oklch(0.88 0.08 235);
+      color: oklch(0.24 0.07 235);
+      font-weight: 800;
+    }
     .work-table .date-btn.actual .actual-line { background: var(--actual); color: white; }
     .work-table .date-btn.readonly { cursor: default; }
     .work-table .date-btn.readonly:hover { outline: 0; }
@@ -548,6 +589,20 @@
       .mobile-tabs { display: block; }
       .content { padding: 12px; }
       .plan-grid { max-height: calc(100vh - 260px); }
+      .work-table { min-width: 1500px; }
+      .work-table .sticky {
+        position: static;
+        left: auto;
+      }
+      .work-table thead .sticky {
+        position: sticky;
+        top: 0;
+      }
+      .work-table .col-building { width: 54px; }
+      .work-table .col-period { width: 74px; }
+      .work-table .col-item { width: 180px; }
+      .work-table .col-value { width: 82px; }
+      .work-table .date-cell { width: 36px; min-width: 36px; }
     }
     @media (max-width: 560px) {
       .topbar { padding: 10px 12px; }
@@ -632,6 +687,11 @@
     const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
     const uid = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
     const money = (value, digits = 0) => Number(value || 0).toLocaleString("th-TH", { maximumFractionDigits: digits, minimumFractionDigits: digits });
+    const qty = (value) => {
+      const num = Number(value || 0);
+      if (!num) return "";
+      return num.toLocaleString("th-TH", { maximumFractionDigits: Number.isInteger(num) ? 0 : 2 });
+    };
     const pct = (value) => `${(Number(value || 0) * 100).toLocaleString("th-TH", { maximumFractionDigits: 2 })}%`;
     const n = (value) => Number(value || 0);
     const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -835,6 +895,30 @@
       return state.periods.filter((period) => buildings.includes(period.building));
     }
 
+    function getQuickEntry(view = state.ui.planView || "G") {
+      state.ui.quickEntry = state.ui.quickEntry || {};
+      const quick = state.ui.quickEntry;
+      if (view !== "GI") quick.building = view;
+      if (!["G", "I"].includes(quick.building)) quick.building = "G";
+      const buildingPeriods = state.periods.filter((period) => period.building === quick.building);
+      if (!buildingPeriods.some((period) => period.id === quick.periodId)) quick.periodId = buildingPeriods[0]?.id || "";
+      const period = getPeriod(quick.periodId);
+      if (!period?.items.some((item) => item.id === quick.itemId)) quick.itemId = period?.items[0]?.id || "";
+      const dates = getDates();
+      if (!dates.includes(quick.date)) quick.date = dates.includes(state.settings.updateDate) ? state.settings.updateDate : dates[0] || "";
+      if (!state.workers.some((worker) => worker.id === quick.workerId)) quick.workerId = state.workers[0]?.id || "";
+      if (!["full", "half", "hours"].includes(quick.unit)) quick.unit = "full";
+      if (!quick.hours) quick.hours = state.settings.dayHours;
+      return quick;
+    }
+
+    function selectedQuickRefs() {
+      const quick = getQuickEntry();
+      const period = getPeriod(quick.periodId);
+      const item = getItem(period, quick.itemId);
+      return { quick, period, item };
+    }
+
     function laborUnits(entry) {
       if (entry.unit === "full") return 1;
       if (entry.unit === "half") return 0.5;
@@ -970,12 +1054,12 @@
               <span class="pill ${view === "GI" ? "green" : ""}">${money(s.currentRatio * 100, 2)}%</span>
             </div>
             <div class="panel-body metric-grid">
-              <div class="metric"><span>มูลค่าค่าแรง 100%</span><strong>${money(s.laborValue, 2)}</strong></div>
-              <div class="metric"><span>ค่าแรงควบคุม ${money(state.settings.controlPercent, 0)}%</span><strong>${money(s.control, 2)}</strong></div>
+              <div class="metric"><span>มูลค่าค่าแรง 100%</span><strong>${money(s.laborValue, 0)}</strong></div>
+              <div class="metric"><span>ค่าแรงควบคุม ${money(state.settings.controlPercent, 0)}%</span><strong>${money(s.control, 0)}</strong></div>
               <div class="metric"><span>ค่าแรงสะสม</span><strong>${money(s.laborActual, 0)}</strong></div>
               <div class="metric"><span>ค่าเครื่องจักรสะสม</span><strong>${money(s.machineActual, 0)}</strong></div>
               <div class="metric"><span>(A) + (B)</span><strong>${money(s.total, 0)}</strong></div>
-              <div class="metric"><span>ยอด manual</span><strong>${money(s.manual.costToUpdate, 2)}</strong></div>
+              <div class="metric"><span>ยอด manual</span><strong>${money(s.manual.costToUpdate, 0)}</strong></div>
             </div>
           </div>
         `;
@@ -1034,7 +1118,68 @@
               <button data-action="open-report">ไปหน้า Export</button>
             </div>
           </div>
+          ${renderQuickEntry(view)}
           <div class="plan-grid">${buildPlanTable(view, dates)}</div>
+        </div>
+      `;
+    }
+
+    function renderQuickEntry(view) {
+      const quick = getQuickEntry(view);
+      const buildingOptions = ["G", "I"].map((building) => `<option value="${building}" ${quick.building === building ? "selected" : ""}>หลัง ${building}</option>`).join("");
+      const buildingPeriods = state.periods.filter((period) => period.building === quick.building);
+      const period = getPeriod(quick.periodId) || buildingPeriods[0];
+      const item = getItem(period, quick.itemId) || period?.items[0];
+      const currentPlanned = item ? n(item.plan?.[quick.date]) : 0;
+      const currentUnits = item ? itemActualUnits(item, quick.date) : 0;
+      const currentLabor = item ? itemLaborCost(item, quick.date) : 0;
+      const ignore = item ? { periodId: period.id, itemId: item.id, date: quick.date } : null;
+      const usedInCell = new Set(item ? actualEntries(item, quick.date).map((row) => row.workerId) : []);
+      const workerOptions = state.workers.map((worker) => {
+        const assigned = ignore ? workerAssignedInfo(worker.id, quick.date, ignore) : null;
+        const disabled = assigned || usedInCell.has(worker.id) ? "disabled" : "";
+        const suffix = assigned ? `ใช้แล้วที่ ${assigned.period.building} งวด ${assigned.period.no}` : usedInCell.has(worker.id) ? "อยู่ในช่องนี้แล้ว" : money(worker.dailyWage, 0);
+        return `<option value="${worker.id}" ${quick.workerId === worker.id ? "selected" : ""} ${disabled}>${esc(worker.code)} · ${esc(worker.name)} · ${esc(suffix)}</option>`;
+      }).join("");
+      const existing = item ? actualEntries(item, quick.date).map((row) => {
+        const worker = getWorker(row.workerId);
+        return `<span class="pill red">${esc(worker?.code || "")} ${esc(worker?.name || "")} ${qty(laborUnits(row))} แรง</span>`;
+      }).join("") : "";
+      return `
+        <div class="quick-entry">
+          <div class="panel-head">
+            <div>
+              <h2>ลงงานจริง</h2>
+            </div>
+            <span class="pill ${view === "GI" ? "amber" : "green"}">${view === "GI" ? "บันทึกเข้า G/I แล้วรวมอัตโนมัติ" : `บันทึกหลัง ${quick.building}`}</span>
+          </div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <label><span>อาคาร</span><select data-quick-field="building">${buildingOptions}</select></label>
+              <label><span>งวด</span><select data-quick-field="periodId">${buildingPeriods.map((row) => `<option value="${row.id}" ${period?.id === row.id ? "selected" : ""}>งวด ${esc(row.no)} · ${esc(row.title)}</option>`).join("")}</select></label>
+              <label><span>รายการ</span><select data-quick-field="itemId">${(period?.items || []).map((row) => `<option value="${row.id}" ${item?.id === row.id ? "selected" : ""}>${esc(row.name)}</option>`).join("")}</select></label>
+              <label><span>วันที่</span><input type="date" data-quick-field="date" min="${esc(state.settings.startDate)}" max="${esc(state.settings.endDate)}" value="${esc(quick.date)}"></label>
+              <label><span>จำนวนแรงตามแผน</span><input type="number" min="0" step="0.5" data-quick-field="planned" value="${esc(quick.planned ?? currentPlanned ?? 0)}"></label>
+              <label><span>คนงานที่ทำจริง</span><select data-quick-field="workerId">${workerOptions}</select></label>
+              <label><span>เวลา</span><select data-quick-field="unit">
+                <option value="full" ${quick.unit === "full" ? "selected" : ""}>เต็มวัน</option>
+                <option value="half" ${quick.unit === "half" ? "selected" : ""}>ครึ่งวัน</option>
+                <option value="hours" ${quick.unit === "hours" ? "selected" : ""}>รายชั่วโมง</option>
+              </select></label>
+              <label><span>ชั่วโมง</span><input type="number" min="0" step="0.5" data-quick-field="hours" value="${esc(quick.hours)}"></label>
+            </div>
+            <div class="quick-summary">
+              <div class="metric"><span>แรงจริงในช่องนี้</span><strong>${qty(currentUnits) || "0"}</strong></div>
+              <div class="metric"><span>มูลค่าค่าแรง</span><strong>${money(currentLabor, 0)}</strong></div>
+              <div class="metric"><span>คนงานที่เลือกแล้ว</span><strong>${actualEntries(item || { actual: {} }, quick.date).length}</strong></div>
+            </div>
+            <div class="inline-list">${existing || `<span class="muted">ยังไม่มีคนงานในวันนี้</span>`}</div>
+            <div class="quick-actions">
+              <button class="primary" data-action="quick-add-worker">เพิ่มคนงานและบันทึก</button>
+              <button data-action="quick-save-plan">บันทึกจำนวนแผน</button>
+              <button data-action="quick-open-detail">เปิดรายละเอียดช่องนี้</button>
+            </div>
+          </div>
         </div>
       `;
     }
@@ -1054,7 +1199,7 @@
                 <td class="sticky col-building">${esc(period.building)}</td>
                 <td class="sticky col-period">งวด ${esc(period.no)}</td>
                 <td class="sticky col-item">${esc(item.name)} <span class="pill">${money(item.progressPct, 0)}%</span></td>
-                <td class="sticky col-value num">${money(item.laborValue, 2)}</td>
+                <td class="sticky col-value num">${money(item.laborValue, 0)}</td>
                 ${dates.map((date) => {
                   const planned = n(item.plan?.[date]);
                   const units = itemActualUnits(item, date);
@@ -1064,8 +1209,8 @@
                   const attrs = editable ? `data-action="edit-cell" data-period-id="${period.id}" data-item-id="${item.id}" data-date="${date}"` : "";
                   return `<td class="date-cell ${holidayClass}">
                     <button class="date-btn ${workClass} ${editable ? "" : "readonly"}" ${attrs}>
-                      <span class="plan-line">${planned ? money(planned, 1) : ""}</span>
-                      <span class="actual-line">${units ? money(units, 2) : ""}</span>
+                      <span class="plan-line ${planned ? "has-plan" : ""}">${planned ? qty(planned) : ""}</span>
+                      <span class="actual-line">${units ? qty(units) : ""}</span>
                       <span class="cost-line">${cost ? money(cost, 0) : ""}</span>
                     </button>
                   </td>`;
@@ -1076,15 +1221,15 @@
         }
       }
       const summaryRows = [
-        ["จำนวนแรงที่ใช้ตามแผน", (date) => totalPlanned(view, date), 1],
-        ["จำนวนแรงที่ใช้จริง", (date) => totalActualUnits(view, date), 2],
+        ["จำนวนแรงที่ใช้ตามแผน", (date) => totalPlanned(view, date), "qty"],
+        ["จำนวนแรงที่ใช้จริง", (date) => totalActualUnits(view, date), "qty"],
         ["ค่าแรงที่ใช้ต่อวัน", (date) => totalLaborCost(view, date), 0],
         ["ค่าเครื่องจักรที่ใช้ต่อวัน", (date) => totalMachineCost(view, date), 0],
         ["รวมค่าใช้จ่ายต่อวัน", (date) => totalSpend(view, date), 0]
       ].map(([label, getter, digits]) => `
         <tr class="summary-row">
           <td class="sticky col-building" colspan="4">${label}</td>
-          ${dates.map((date) => `<td class="date-cell ${isHoliday(date) ? "holiday" : ""}">${getter(date) ? money(getter(date), digits) : "0"}</td>`).join("")}
+          ${dates.map((date) => `<td class="date-cell ${isHoliday(date) ? "holiday" : ""}">${getter(date) ? (digits === "qty" ? qty(getter(date)) : money(getter(date), digits)) : "0"}</td>`).join("")}
         </tr>
       `).join("");
       return `
@@ -1214,7 +1359,7 @@
                     <td><input data-worker-field="code" data-worker-id="${worker.id}" value="${esc(worker.code)}"></td>
                     <td><input data-worker-field="name" data-worker-id="${worker.id}" value="${esc(worker.name)}"></td>
                     <td><input class="num" type="number" data-worker-field="dailyWage" data-worker-id="${worker.id}" value="${esc(worker.dailyWage)}"></td>
-                    <td class="num">${money(n(worker.dailyWage) / n(state.settings.dayHours), 2)}</td>
+                    <td class="num">${money(n(worker.dailyWage) / n(state.settings.dayHours), 0)}</td>
                     <td><button class="danger" data-action="delete-worker" data-worker-id="${worker.id}">ลบ</button></td>
                   </tr>
                 `).join("")}
@@ -1385,7 +1530,7 @@
               </select>
             </td>
             <td><input type="number" min="0" step="0.5" data-draft-worker-hours="${index}" value="${esc(row.hours || state.settings.dayHours)}"></td>
-            <td class="num">${money(amount, 2)}</td>
+            <td class="num">${money(amount, 0)}</td>
             <td><button data-action="remove-draft-worker" data-index="${index}" class="danger">ลบ</button></td>
           </tr>
         `;
@@ -1407,9 +1552,9 @@
         ${error ? `<div class="error">${esc(error)}</div>` : ""}
         <div class="form-grid">
           <label><span>จำนวนแรงตามแผน</span><input type="number" min="0" step="0.5" id="draftPlanned" value="${esc(cellDraft.planned)}"></label>
-          <div class="metric"><span>จำนวนแรงใช้จริง</span><strong>${money(units, 2)}</strong></div>
-          <div class="metric"><span>ค่าแรงจริง</span><strong>${money(labor, 2)}</strong></div>
-          <div class="metric"><span>ค่าเครื่องจักรวันนี้</span><strong>${money(machines, 2)}</strong></div>
+          <div class="metric"><span>จำนวนแรงใช้จริง</span><strong>${qty(units) || "0"}</strong></div>
+          <div class="metric"><span>ค่าแรงจริง</span><strong>${money(labor, 0)}</strong></div>
+          <div class="metric"><span>ค่าเครื่องจักรวันนี้</span><strong>${money(machines, 0)}</strong></div>
         </div>
         <div class="panel">
           <div class="panel-head"><h3>คนงาน</h3></div>
@@ -1505,6 +1650,70 @@
       renderCellDialog();
     }
 
+    function quickSetPlan() {
+      const { quick, item } = selectedQuickRefs();
+      if (!item || !quick.date) return showToast("เลือกงวด รายการ และวันที่ก่อน");
+      const plannedInput = $('[data-quick-field="planned"]');
+      setPlan(item, quick.date, plannedInput ? plannedInput.value : quick.planned || 0);
+      saveState();
+      renderPlan();
+      showToast("บันทึกจำนวนแรงตามแผนแล้ว");
+    }
+
+    function quickAddWorker() {
+      const { quick, period, item } = selectedQuickRefs();
+      if (!period || !item || !quick.date) return showToast("เลือกงวด รายการ และวันที่ก่อน");
+      const workerId = quick.workerId;
+      if (!workerId) return showToast("เลือกคนงานก่อน");
+      const ignore = { periodId: period.id, itemId: item.id, date: quick.date };
+      const assigned = workerAssignedInfo(workerId, quick.date, ignore);
+      if (assigned) return showToast(`คนงานนี้ใช้แล้วที่หลัง ${assigned.period.building} งวด ${assigned.period.no}`);
+      if (actualEntries(item, quick.date).some((row) => row.workerId === workerId)) return showToast("คนงานนี้อยู่ในช่องนี้แล้ว");
+      const plannedInput = $('[data-quick-field="planned"]');
+      setPlan(item, quick.date, plannedInput ? plannedInput.value : quick.planned || 0);
+      const unit = quick.unit || "full";
+      const hours = unit === "full" ? n(state.settings.dayHours) : unit === "half" ? n(state.settings.dayHours) / 2 : n(quick.hours);
+      item.actual[quick.date] = [...actualEntries(item, quick.date), { workerId, unit, hours }];
+      saveState();
+      renderPlan();
+      showToast("เพิ่มคนงานจริงและคำนวณค่าแรงแล้ว");
+    }
+
+    function quickOpenDetail() {
+      const { quick, period, item } = selectedQuickRefs();
+      if (!period || !item || !quick.date) return showToast("เลือกงวด รายการ และวันที่ก่อน");
+      const plannedInput = $('[data-quick-field="planned"]');
+      setPlan(item, quick.date, plannedInput ? plannedInput.value : quick.planned || 0);
+      saveState();
+      openCellEditor(period.id, item.id, quick.date);
+    }
+
+    function updateQuickField(field, value, rerender = true) {
+      const quick = getQuickEntry();
+      quick[field] = value;
+      if (field === "building") {
+        const period = state.periods.find((row) => row.building === value);
+        quick.periodId = period?.id || "";
+        quick.itemId = period?.items[0]?.id || "";
+        state.ui.planView = value;
+        delete quick.planned;
+      }
+      if (field === "periodId") {
+        const period = getPeriod(value);
+        quick.building = period?.building || quick.building;
+        quick.itemId = period?.items[0]?.id || "";
+        delete quick.planned;
+      }
+      if (field === "itemId" || field === "date") delete quick.planned;
+      if (field === "unit") {
+        if (value === "full") quick.hours = n(state.settings.dayHours);
+        if (value === "half") quick.hours = n(state.settings.dayHours) / 2;
+      }
+      if (field === "planned" || field === "hours") quick[field] = n(value);
+      saveState();
+      if (rerender) renderPlan();
+    }
+
     function renderAll() {
       renderNav();
       renderActiveTab();
@@ -1532,6 +1741,9 @@
 
       if (action === "open-report") return setActiveTab("report");
       if (action === "edit-cell") return openCellEditor(button.dataset.periodId, button.dataset.itemId, button.dataset.date);
+      if (action === "quick-add-worker") return quickAddWorker();
+      if (action === "quick-save-plan") return quickSetPlan();
+      if (action === "quick-open-detail") return quickOpenDetail();
       if (action === "add-draft-worker") return addWorkerToDraft();
       if (action === "add-draft-machine") return addMachineToDraft();
       if (action === "remove-draft-worker") {
@@ -1575,6 +1787,10 @@
         state.manual[view][target.dataset.manual] = ["contractLaborCost", "costToUpdate"].includes(target.dataset.manual) ? n(target.value) : target.value;
         saveState();
         return;
+      }
+      if (target.dataset.quickField) {
+        const field = target.dataset.quickField;
+        return updateQuickField(field, target.value, !["planned", "hours"].includes(field));
       }
       if (target.dataset.periodField) {
         const period = getPeriod(target.dataset.periodId);
@@ -1647,6 +1863,7 @@
         saveState();
         return renderReport();
       }
+      if (target.dataset.quickField) return updateQuickField(target.dataset.quickField, target.value, true);
       if (target.dataset.setting) return renderDashboard();
     }
 
@@ -1805,7 +2022,7 @@
       if (!canvas) return;
       const dates = getDates();
       const dateW = 32 * scale;
-      const leftW = 500 * scale;
+      const leftW = 560 * scale;
       const pad = 16 * scale;
       const rowH = 22 * scale;
       const topH = 128 * scale;
@@ -1847,11 +2064,11 @@
       y += topH - rowH;
 
       drawCell(ctx, x0, y, 52 * scale, rowH, "ลำดับ", true);
-      drawCell(ctx, x0 + 52 * scale, y, 158 * scale, rowH, "รายการ", true);
-      drawCell(ctx, x0 + 210 * scale, y, 98 * scale, rowH, "มูลค่าค่าแรง", true);
-      drawCell(ctx, x0 + 308 * scale, y, 64 * scale, rowH, "แผน/จริง", true);
-      drawCell(ctx, x0 + 372 * scale, y, 64 * scale, rowH, "ก้าวหน้า", true);
-      drawCell(ctx, x0 + 436 * scale, y, 64 * scale, rowH, "หมายเหตุ", true);
+      drawCell(ctx, x0 + 52 * scale, y, 168 * scale, rowH, "รายการ", true);
+      drawCell(ctx, x0 + 220 * scale, y, 104 * scale, rowH, "มูลค่าค่าแรง", true);
+      drawCell(ctx, x0 + 324 * scale, y, 96 * scale, rowH, "บรรทัดข้อมูล", true);
+      drawCell(ctx, x0 + 420 * scale, y, 64 * scale, rowH, "ก้าวหน้า", true);
+      drawCell(ctx, x0 + 484 * scale, y, 76 * scale, rowH, "หมายเหตุ", true);
       dates.forEach((date, index) => {
         const x = x0 + leftW + index * dateW;
         drawCell(ctx, x, y, dateW, rowH, dayNumber(date), true, isHoliday(date) ? "#c9c9c9" : "#f3f5f3");
@@ -1866,25 +2083,35 @@
           period.items.forEach((item, itemIndex) => {
             const seq = itemIndex === 0 ? period.no : "";
             const leftRows = [
-              ["แผน", (date) => n(item.plan?.[date]) || ""],
-              ["จริง", (date) => itemActualUnits(item, date) || ""],
-              ["ค่าแรง", (date) => itemLaborCost(item, date) || ""]
+              ["แรงคนงาน(แผน)", (date) => n(item.plan?.[date]) || ""],
+              ["แรงคนงาน(จริง)", (date) => itemActualUnits(item, date) || ""],
+              ["มูลค่าค่าแรง", (date) => itemLaborCost(item, date) || ""]
             ];
             leftRows.forEach(([label, getter], subIndex) => {
-              const fill = subIndex === 1 ? "#fff0ef" : "#ffffff";
+              const fill = "#ffffff";
               drawCell(ctx, x0, y, 52 * scale, rowH, subIndex === 0 ? seq : "", false, fill);
-              drawCell(ctx, x0 + 52 * scale, y, 158 * scale, rowH, subIndex === 0 ? item.name : "", false, fill, "#111", "left");
-              drawCell(ctx, x0 + 210 * scale, y, 98 * scale, rowH, subIndex === 0 ? money(item.laborValue, 2) : "", false, fill, "#111", "right");
-              drawCell(ctx, x0 + 308 * scale, y, 64 * scale, rowH, label, false, fill);
-              drawCell(ctx, x0 + 372 * scale, y, 64 * scale, rowH, subIndex === 0 ? `${money(item.progressPct, 0)}%` : "", false, fill);
-              drawCell(ctx, x0 + 436 * scale, y, 64 * scale, rowH, "", false, fill);
+              drawCell(ctx, x0 + 52 * scale, y, 168 * scale, rowH, subIndex === 0 ? item.name : "", false, fill, "#111", "left");
+              drawCell(ctx, x0 + 220 * scale, y, 104 * scale, rowH, subIndex === 0 ? money(item.laborValue, 0) : "", false, fill, "#111", "right");
+              drawCell(ctx, x0 + 324 * scale, y, 96 * scale, rowH, label, false, fill);
+              drawCell(ctx, x0 + 420 * scale, y, 64 * scale, rowH, subIndex === 0 ? `${money(item.progressPct, 0)}%` : "", false, fill);
+              drawCell(ctx, x0 + 484 * scale, y, 76 * scale, rowH, "", false, fill);
               dates.forEach((date, index) => {
                 const value = getter(date);
                 const x = x0 + leftW + index * dateW;
-                const hasWork = subIndex === 1 && itemActualUnits(item, date) > 0;
-                let bg = isHoliday(date) ? "#c9c9c9" : fill;
-                if (hasWork) bg = "#ff2b1f";
-                drawCell(ctx, x, y, dateW, rowH, value ? money(value, subIndex === 2 ? 0 : 1) : "", false, bg, hasWork ? "#fff" : "#111");
+                const hasValue = Number(value) > 0;
+                const planValue = subIndex === 0 && hasValue;
+                const actualValue = subIndex === 1 && hasValue;
+                let bg = isHoliday(date) ? "#c9c9c9" : "#ffffff";
+                let color = "#111";
+                if (planValue) {
+                  bg = "#cfe8ff";
+                  color = "#0f3f66";
+                }
+                if (actualValue) {
+                  bg = "#ff2b1f";
+                  color = "#fff";
+                }
+                drawCell(ctx, x, y, dateW, rowH, value ? (subIndex === 2 ? money(value, 0) : qty(value)) : "", false, bg, color);
               });
               y += rowH;
             });
@@ -1893,15 +2120,29 @@
       }
 
       const totals = [
-        ["จำนวนแรงที่ใช้ตามแผน", (date) => totalPlanned(view, date), 1],
-        ["จำนวนแรงที่ใช้จริง", (date) => totalActualUnits(view, date), 2],
+        ["จำนวนแรงที่ใช้ตามแผน", (date) => totalPlanned(view, date), "plan"],
+        ["จำนวนแรงที่ใช้จริง", (date) => totalActualUnits(view, date), "actual"],
         ["ค่าแรงที่ใช้ต่อวัน", (date) => totalLaborCost(view, date), 0],
         ["ค่าเครื่องจักรที่ใช้ต่อวัน", (date) => totalMachineCost(view, date), 0],
         ["รวมค่าใช้จ่ายต่อวัน", (date) => totalSpend(view, date), 0]
       ];
       totals.forEach(([label, getter, digits]) => {
-        drawCell(ctx, x0, y, leftW, rowH, label, false, "#f3f5f3", "#111", "right", true);
-        dates.forEach((date, index) => drawCell(ctx, x0 + leftW + index * dateW, y, dateW, rowH, money(getter(date), digits), false, isHoliday(date) ? "#c9c9c9" : "#f3f5f3"));
+        drawCell(ctx, x0, y, leftW, rowH, label, false, "#ffffff", "#111", "right", true);
+        dates.forEach((date, index) => {
+          const value = getter(date);
+          let bg = isHoliday(date) ? "#c9c9c9" : "#ffffff";
+          let color = "#111";
+          if (digits === "plan" && value) {
+            bg = "#cfe8ff";
+            color = "#0f3f66";
+          }
+          if (digits === "actual" && value) {
+            bg = "#ff2b1f";
+            color = "#fff";
+          }
+          const text = digits === "plan" || digits === "actual" ? (value ? qty(value) : "0") : money(value, digits);
+          drawCell(ctx, x0 + leftW + index * dateW, y, dateW, rowH, text, false, bg, color);
+        });
         y += rowH;
       });
 
@@ -1912,8 +2153,8 @@
       const sx = x0;
       const colors = ["#d9e6f7", "#ff9f9f", "#fff0a8", "#b790dc", "#ff9f9f", "#c8e0b8"];
       const summary = [
-        ["มูลค่าค่าแรง", money(s.laborValue, 2)],
-        [`ค่าแรงควบคุมที่ ${money(state.settings.controlPercent, 0)}%`, money(s.control, 2)],
+        ["มูลค่าค่าแรง", money(s.laborValue, 0)],
+        [`ค่าแรงควบคุมที่ ${money(state.settings.controlPercent, 0)}%`, money(s.control, 0)],
         ["ค่าแรงสะสม ณ.ปัจจุบัน (A)", money(s.laborActual, 0)],
         ["ค่าเครื่องจักรสะสม ณ.ปัจจุบัน (B)", money(s.machineActual, 0)],
         ["(A) + (B)", money(s.total, 0)],
@@ -1928,8 +2169,8 @@
       const rx = sx + summaryW + valueW + 120 * scale;
       y -= summary.length * rowH;
       const manualRows = [
-        ["ค่าแรงต้นทุนสะสมถึงงวดปัจจุบัน", money(s.manual.contractLaborCost, 2), "#d9e6f7"],
-        ["ค่าแรง+ค่าเครื่องจักรสะสมถึงวัน update", money(s.manual.costToUpdate, 2), "#fff0a8"],
+        ["ค่าแรงต้นทุนสะสมถึงงวดปัจจุบัน", money(s.manual.contractLaborCost, 0), "#d9e6f7"],
+        ["ค่าแรง+ค่าเครื่องจักรสะสมถึงวัน update", money(s.manual.costToUpdate, 0), "#fff0a8"],
         ["สรุปค่าแรงทั้งโครงการ(ถ้าอนุมัติ ณ วันupdate)", pct(s.manualRatio), "#ff9f9f"],
         ["วันที่ Update", dateLabel(state.settings.updateDate), "#e8e8e8"],
         ["หมายเหตุ", s.manual.note || "", "#c8e0b8"]
