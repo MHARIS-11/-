@@ -3963,18 +3963,28 @@
       drawReport(canvas, view, 2);
       const a = document.createElement("a");
       a.href = canvas.toDataURL("image/png");
-      a.download = `tman-report-${view}-${workPlanLabel().replace(/\s+/g, "-")}-${planUpdateDate() || "update"}.png`;
+      const now = new Date();
+      const stamp = `${localISODate(now)}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+      a.download = `tman-report-${view}-${planUpdateDate() || "update"}-${stamp}.png`;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
     }
 
     function drawReport(canvas, view, scale = 1) {
       if (!canvas) return;
       const dates = getDates();
-      const dateW = 32 * scale;
-      const leftW = 560 * scale;
+      const dateW = 42 * scale;
       const pad = 16 * scale;
       const rowH = 22 * scale;
-      const topH = 128 * scale;
+      const topH = 150 * scale;
+      const seqW = 56 * scale;
+      const itemW = 190 * scale;
+      const laborValueW = 118 * scale;
+      const dataLabelW = 112 * scale;
+      const progressW = 68 * scale;
+      const noteW = 76 * scale;
+      const leftW = seqW + itemW + laborValueW + dataLabelW + progressW + noteW;
       const reportPeriods = periodsForView(view);
       const itemRows = reportPeriods.reduce((sum, period) => sum + 1 + period.items.length * 3, 0);
       const totalRows = reportPeriods.length ? 5 : 0;
@@ -3995,12 +4005,12 @@
       const x0 = pad;
       let y = pad;
       const tableW = leftW + dates.length * dateW;
-      ctx.strokeRect(x0, y, tableW, topH - rowH);
+      ctx.strokeRect(x0, y, tableW, topH - rowH * 2);
       ctx.font = `bold ${18 * scale}px Tahoma, sans-serif`;
       ctx.textAlign = "center";
       const titleView = view === "GI" ? "อาคาร G+I" : `อาคาร ${view}`;
       ctx.fillStyle = "#111";
-      ctx.fillText(`แผนงานประจำงวดโครงการ ${state.settings.projectName} ${titleView} ${workPlanLabel()}`, x0 + tableW / 2, y + 22 * scale);
+      ctx.fillText(`แผนงานประจำงวดโครงการ ${state.settings.projectName} ${titleView}`, x0 + tableW / 2, y + 22 * scale);
       ctx.font = `${12 * scale}px Tahoma, sans-serif`;
       ctx.textAlign = "left";
       const detailY = y + 54 * scale;
@@ -4011,14 +4021,21 @@
         const desc = periodsForBuilding(building).map((p) => `งวด ${p.no} ${p.description}`).slice(0, 3);
         desc.forEach((line, i) => fitText(ctx, line, gx + 18 * scale, detailY + (18 + i * 16) * scale, tableW / groups.length - 24 * scale));
       });
-      y += topH - rowH;
+      y += topH - rowH * 2;
 
-      drawCell(ctx, x0, y, 52 * scale, rowH, "ลำดับ", true);
-      drawCell(ctx, x0 + 52 * scale, y, 168 * scale, rowH, "รายการ", true);
-      drawCell(ctx, x0 + 220 * scale, y, 104 * scale, rowH, "มูลค่าค่าแรง", true);
-      drawCell(ctx, x0 + 324 * scale, y, 96 * scale, rowH, "บรรทัดข้อมูล", true);
-      drawCell(ctx, x0 + 420 * scale, y, 64 * scale, rowH, "ก้าวหน้า", true);
-      drawCell(ctx, x0 + 484 * scale, y, 76 * scale, rowH, "หมายเหตุ", true);
+      drawCell(ctx, x0, y, seqW, rowH * 2, "ลำดับ", true);
+      drawCell(ctx, x0 + seqW, y, itemW, rowH * 2, "รายการ", true);
+      drawCell(ctx, x0 + seqW + itemW, y, laborValueW, rowH * 2, "มูลค่าค่าแรง", true);
+      drawCell(ctx, x0 + seqW + itemW + laborValueW, y, dataLabelW, rowH * 2, "บรรทัดข้อมูล", true);
+      drawCell(ctx, x0 + seqW + itemW + laborValueW + dataLabelW, y, progressW, rowH * 2, "ก้าวหน้า", true);
+      drawCell(ctx, x0 + seqW + itemW + laborValueW + dataLabelW + progressW, y, noteW, rowH * 2, "หมายเหตุ", true);
+      let monthX = x0 + leftW;
+      monthGroups(dates).forEach((group) => {
+        const w = group.count * dateW;
+        drawCell(ctx, monthX, y, w, rowH, group.label, true, "#f3f5f3");
+        monthX += w;
+      });
+      y += rowH;
       dates.forEach((date, index) => {
         const x = x0 + leftW + index * dateW;
         drawCell(ctx, x, y, dateW, rowH, dayNumber(date), true, isHoliday(date) ? "#c9c9c9" : "#f3f5f3");
@@ -4039,12 +4056,12 @@
             ];
             leftRows.forEach(([label, getter], subIndex) => {
               const fill = "#ffffff";
-              drawCell(ctx, x0, y, 52 * scale, rowH, subIndex === 0 ? seq : "", false, fill);
-              drawCell(ctx, x0 + 52 * scale, y, 168 * scale, rowH, subIndex === 0 ? item.name : "", false, fill, "#111", "left");
-              drawCell(ctx, x0 + 220 * scale, y, 104 * scale, rowH, subIndex === 0 ? money(item.laborValue, 0) : "", false, fill, "#111", "right");
-              drawCell(ctx, x0 + 324 * scale, y, 96 * scale, rowH, label, false, fill);
-              drawCell(ctx, x0 + 420 * scale, y, 64 * scale, rowH, subIndex === 0 ? `${money(item.progressPct, 0)}%` : "", false, fill);
-              drawCell(ctx, x0 + 484 * scale, y, 76 * scale, rowH, "", false, fill);
+              drawCell(ctx, x0, y, seqW, rowH, subIndex === 0 ? seq : "", false, fill);
+              drawCell(ctx, x0 + seqW, y, itemW, rowH, subIndex === 0 ? item.name : "", false, fill, "#111", "left");
+              drawCell(ctx, x0 + seqW + itemW, y, laborValueW, rowH, subIndex === 0 ? money(item.laborValue, 0) : "", false, fill, "#111", "right");
+              drawCell(ctx, x0 + seqW + itemW + laborValueW, y, dataLabelW, rowH, label, false, fill);
+              drawCell(ctx, x0 + seqW + itemW + laborValueW + dataLabelW, y, progressW, rowH, subIndex === 0 ? `${money(item.progressPct, 0)}%` : "", false, fill);
+              drawCell(ctx, x0 + seqW + itemW + laborValueW + dataLabelW + progressW, y, noteW, rowH, "", false, fill);
               dates.forEach((date, index) => {
                 const value = getter(date);
                 const x = x0 + leftW + index * dateW;
@@ -4140,10 +4157,16 @@
     function fitText(ctx, text, x, y, maxWidth, align = "left") {
       const value = String(text ?? "");
       if (!value) return;
-      let out = value;
-      while (ctx.measureText(out).width > maxWidth && out.length > 1) out = out.slice(0, -2);
-      if (out !== value) out += "…";
-      ctx.fillText(out, x, y, maxWidth);
+      const originalFont = ctx.font;
+      const sizeMatch = originalFont.match(/(\d+(?:\.\d+)?)px/);
+      const originalSize = sizeMatch ? Number(sizeMatch[1]) : 10;
+      let fontSize = originalSize;
+      while (ctx.measureText(value).width > maxWidth && fontSize > 6) {
+        fontSize -= 0.5;
+        ctx.font = originalFont.replace(/(\d+(?:\.\d+)?)px/, `${fontSize}px`);
+      }
+      ctx.fillText(value, x, y, maxWidth);
+      ctx.font = originalFont;
     }
 
     document.addEventListener("click", handleClick);
