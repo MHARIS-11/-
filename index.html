@@ -767,6 +767,128 @@
       gap: 6px;
       align-items: center;
     }
+    .period-manager,
+    .period-board,
+    .period-editor {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+    }
+    .period-toolbar-grid {
+      display: grid;
+      grid-template-columns: minmax(220px, 1.4fr) minmax(120px, 0.6fr) minmax(140px, 0.7fr) auto;
+      gap: 8px;
+      align-items: end;
+    }
+    .period-summary-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+    }
+    .period-summary-strip .metric {
+      padding: 10px;
+      background: var(--bg);
+    }
+    .period-summary-strip .metric strong {
+      font-size: 19px;
+    }
+    .period-table {
+      min-width: 860px;
+    }
+    .period-table th,
+    .period-table td {
+      white-space: nowrap;
+    }
+    .period-table td:nth-child(3) {
+      white-space: normal;
+      min-width: 220px;
+    }
+    .period-main-row td {
+      background: var(--surface);
+      font-weight: 800;
+    }
+    .period-sub-row {
+      cursor: pointer;
+    }
+    .period-sub-row:hover td,
+    .period-sub-row:focus-within td {
+      background: oklch(0.97 0.012 160);
+    }
+    .period-sub-row.is-selected td {
+      background: var(--primary-soft);
+    }
+    .period-sub-row.is-disabled td {
+      color: var(--muted);
+      background: var(--surface);
+    }
+    .period-no {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 42px;
+      padding: 3px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--bg);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+    .period-indent {
+      padding-left: 24px;
+    }
+    .period-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+    .period-mini-note {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .period-empty {
+      padding: 18px;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .period-editor-head {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .period-editor-title {
+      display: grid;
+      gap: 3px;
+    }
+    .period-editor-title small {
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .period-editor-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .period-readonly {
+      border: 1px dashed var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 9px 10px;
+      min-height: 36px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .status-select {
+      min-width: 132px;
+    }
     dialog {
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -890,6 +1012,7 @@
       .topbar { padding: 10px 12px; }
       .split, .metric-grid { grid-template-columns: 1fr; }
       .form-grid { grid-template-columns: 1fr; }
+      .period-toolbar-grid { grid-template-columns: 1fr; }
       h1 { font-size: 18px; }
       .panel-head { align-items: stretch; }
       .segmented { width: 100%; }
@@ -1405,6 +1528,92 @@
       if (enabled) ids.add(periodId);
       else ids.delete(periodId);
       plan.periodIds = [...ids];
+    }
+
+    const PERIOD_STATUSES = ["รอทำ", "กำลังทำ", "เสร็จแล้ว", "พักไว้", "ยกเลิก"];
+
+    function periodStatusOptions(value = "") {
+      const current = value || "รอทำ";
+      const options = PERIOD_STATUSES.includes(current) ? PERIOD_STATUSES : [current, ...PERIOD_STATUSES];
+      return options.map((status) => `<option value="${esc(status)}" ${status === current ? "selected" : ""}>${esc(status)}</option>`).join("");
+    }
+
+    function periodStatusClass(status = "") {
+      if (status === "เสร็จแล้ว") return "green";
+      if (status === "กำลังทำ") return "amber";
+      if (status === "พักไว้") return "";
+      if (status === "ยกเลิก") return "red";
+      return "";
+    }
+
+    function allBuildings() {
+      return [...new Set(["G", "I", ...state.periods.map((period) => period.building).filter(Boolean)])];
+    }
+
+    function periodDisplayTitle(period) {
+      return `งวดงานที่ ${period?.no || ""}`.trim();
+    }
+
+    function periodSearchText(period) {
+      return [period.building, periodMainNo(period), period.no, period.title, period.description, period.status].join(" ").toLowerCase();
+    }
+
+    function periodFilters() {
+      return {
+        search: String(state.ui.periodSearch || "").trim().toLowerCase(),
+        building: state.ui.periodBuilding || "all",
+        status: state.ui.periodStatus || "all"
+      };
+    }
+
+    function periodMatchesFilters(period, filters = periodFilters()) {
+      if (filters.building !== "all" && period.building !== filters.building) return false;
+      if (filters.status !== "all" && (period.status || "รอทำ") !== filters.status) return false;
+      if (filters.search && !periodSearchText(period).includes(filters.search)) return false;
+      return true;
+    }
+
+    function periodGroupRows(building, filters = periodFilters()) {
+      const groups = new Map();
+      state.periods
+        .filter((period) => period.building === building && periodMatchesFilters(period, filters))
+        .sort((a, b) => naturalSort(periodMainNo(a), periodMainNo(b)) || naturalSort(a.no, b.no))
+        .forEach((period) => {
+          const mainNo = periodMainNo(period);
+          const group = groups.get(mainNo) || { building, mainNo, rows: [] };
+          group.rows.push(period);
+          groups.set(mainNo, group);
+        });
+      return [...groups.values()].sort((a, b) => naturalSort(a.mainNo, b.mainNo));
+    }
+
+    function fullMainGroup(period) {
+      const mainNo = periodMainNo(period);
+      return state.periods
+        .filter((row) => row.building === period.building && periodMainNo(row) === mainNo)
+        .sort((a, b) => naturalSort(a.no, b.no));
+    }
+
+    function groupSummary(rows) {
+      const first = rows[0] || {};
+      const mainValue = rows.reduce((best, row) => Math.max(best, n(row.mainValue)), n(first.mainValue));
+      return {
+        mainValue,
+        subValue: rows.reduce((sum, row) => sum + n(row.periodValue), 0),
+        laborValue: rows.reduce((sum, row) => sum + periodLaborValue(row), 0),
+        activeCount: rows.filter(periodEnabled).length,
+        count: rows.length
+      };
+    }
+
+    function nextSubPeriodNo(period) {
+      const mainNo = periodMainNo(period);
+      const used = fullMainGroup(period)
+        .map((row) => String(row.no || ""))
+        .filter((no) => no.startsWith(`${mainNo}.`))
+        .map((no) => Number(no.slice(mainNo.length + 1)))
+        .filter((num) => Number.isFinite(num));
+      return `${mainNo}.${(used.length ? Math.max(...used) : 0) + 1}`;
     }
 
     function periodsForBuilding(building, activeOnly = true) {
@@ -2131,141 +2340,222 @@
 
     function renderPeriods() {
       const el = $("#tab-periods");
-      const options = [...state.periods]
-        .sort((a, b) => a.building.localeCompare(b.building) || naturalSort(periodMainNo(a), periodMainNo(b)) || naturalSort(a.no, b.no))
-        .map((period) => `<option value="${period.id}">หลัง ${period.building} · งวด ${esc(periodMainNo(period))} · งวดย่อย ${esc(period.no)} · ${esc(period.title)}</option>`).join("");
-      const cards = ["G", "I"].map((building) => {
-        const list = state.periods.filter((period) => period.building === building).sort((a, b) => naturalSort(periodMainNo(a), periodMainNo(b)) || naturalSort(a.no, b.no));
-        const summaries = mainPeriodSummaries(building);
-        const activeCount = list.filter(periodEnabled).length;
-        return `
+      const editingId = state.ui.editingPeriodId || "";
+      if (editingId === "__new__") {
+        el.innerHTML = renderNewPeriodEditor();
+        return;
+      }
+      const editingPeriod = getPeriod(editingId);
+      if (editingPeriod) {
+        el.innerHTML = renderPeriodEditor(editingPeriod);
+        return;
+      }
+      if (editingId) state.ui.editingPeriodId = "";
+
+      const filters = periodFilters();
+      const visiblePeriods = state.periods.filter((period) => periodMatchesFilters(period, filters));
+      const selectedVisible = visiblePeriods.filter(periodEnabled);
+      const buildings = allBuildings().filter((building) => filters.building === "all" || filters.building === building);
+      const statusOptions = [`<option value="all">ทุกสถานะ</option>`, ...PERIOD_STATUSES.map((status) => `<option value="${esc(status)}" ${filters.status === status ? "selected" : ""}>${esc(status)}</option>`)].join("");
+      const buildingOptions = [`<option value="all">ทุกอาคาร</option>`, ...allBuildings().map((building) => `<option value="${esc(building)}" ${filters.building === building ? "selected" : ""}>หลัง ${esc(building)}</option>`)].join("");
+      el.innerHTML = `
+        <div class="section period-manager">
+          ${renderWorkPlanPanel()}
           <div class="panel">
             <div class="panel-head">
-              <div class="inline-list">
-                <h2>หลัง ${building}</h2>
-                <span class="pill">เลือกใช้ ${activeCount}/${list.length} งวด</span>
+              <div>
+                <h2>งวดงานทั้งหมด</h2>
+                <p class="muted">แสดงเฉพาะข้อมูลที่ต้องตัดสินใจ กดแถวเพื่อเปิดหน้าแก้เต็มหน้า</p>
               </div>
-              <div class="inline-list">
-                <button data-action="enable-building-periods" data-building="${building}">เลือกใช้ทั้งหมด</button>
-                <button data-action="disable-building-periods" data-building="${building}">ไม่เลือกทั้งหมด</button>
-              </div>
+              <button class="primary" data-action="open-new-period">เพิ่มงวด</button>
             </div>
             <div class="panel-body">
-              ${summaries.length ? `
-                <div class="table-wrap" style="margin-bottom:12px">
-                  <table>
-                    <thead><tr><th>งวดหลัก</th><th class="num">มูลค่างวดหลัก</th><th class="num">มูลค่างวดย่อยรวม</th><th class="num">%</th><th class="num">ค่าแรงรวม</th><th>สถานะ</th></tr></thead>
-                    <tbody>
-                      ${summaries.map((summary) => {
-                        const percent = n(summary.mainValue) ? n(summary.subValue) / n(summary.mainValue) * 100 : 0;
-                        const over = n(summary.subValue) > n(summary.mainValue) && n(summary.mainValue) > 0;
-                        return `
-                          <tr>
-                            <td><strong>งวด ${esc(summary.mainNo)}</strong></td>
-                            <td class="num">${money(summary.mainValue, 0)}</td>
-                            <td class="num">${money(summary.subValue, 0)}</td>
-                            <td class="num">${money(percent, 1)}%</td>
-                            <td class="num">${money(summary.laborValue, 0)}</td>
-                            <td><span class="pill ${over ? "red" : "green"}">${over ? "เกินมูลค่างวดหลัก" : `ใช้ ${summary.activeCount}/${summary.count} งวดย่อย`}</span></td>
-                          </tr>
-                        `;
-                      }).join("")}
-                    </tbody>
-                  </table>
-                </div>
-              ` : ""}
-              <div class="item-list">
-                ${list.map((period) => periodCard(period)).join("") || `<p class="muted">ยังไม่มีงวด</p>`}
+              <div class="period-toolbar-grid">
+                <label><span>ค้นหาเลขงวด</span><input data-period-filter="search" value="${esc(state.ui.periodSearch || "")}" placeholder="เช่น 5, 5.1, 9"></label>
+                <label><span>อาคาร</span><select data-period-filter="building">${buildingOptions}</select></label>
+                <label><span>สถานะ</span><select data-period-filter="status">${statusOptions}</select></label>
+                <button data-action="apply-period-filter">ค้นหา</button>
               </div>
+              <div class="period-summary-strip" style="margin-top:12px">
+                <div class="metric"><span>งวดที่แสดง</span><strong>${visiblePeriods.length}</strong></div>
+                <div class="metric"><span>เลือกใช้รอบนี้</span><strong>${selectedVisible.length}</strong></div>
+                <div class="metric"><span>มูลค่างวดที่เลือก</span><strong>${money(selectedVisible.reduce((sum, row) => sum + n(row.periodValue), 0), 0)}</strong></div>
+                <div class="metric"><span>ค่าแรงงวดที่เลือก</span><strong>${money(selectedVisible.reduce((sum, row) => sum + periodLaborValue(row), 0), 0)}</strong></div>
+              </div>
+              <p class="period-mini-note" style="margin-top:10px">รายการงาน, มูลค่าค่าแรงรายรายการ และ % ความก้าวหน้า แก้ในหน้าแผนงวดงาน</p>
             </div>
           </div>
-        `;
-      }).join("");
-      el.innerHTML = `
-        <div class="section">
-          ${renderWorkPlanPanel()}
-          <div class="split">
-            <div class="panel">
-              <div class="panel-head"><h2>เพิ่มงวด</h2></div>
-              <div class="panel-body form-grid">
-                <label><span>อาคาร</span><select id="newPeriodBuilding"><option value="G">หลัง G</option><option value="I">หลัง I</option></select></label>
-                <label><span>งวดหลัก</span><input id="newPeriodMainNo" placeholder="เช่น 5"></label>
-                <label><span>มูลค่างวดหลัก</span><input id="newPeriodMainValue" type="number" min="0" step="0.01"></label>
-                <label><span>งวดย่อย</span><input id="newPeriodNo" placeholder="เช่น 5.1"></label>
-                <label><span>มูลค่างวดย่อย</span><input id="newPeriodValue" type="number" min="0" step="0.01"></label>
-                <label><span>% ของงวดหลัก</span><input id="newPeriodPercent" type="number" min="0" step="0.01"></label>
-                <label><span>ชื่องวดย่อย</span><input id="newPeriodTitle" placeholder="งวดงานที่ ..."></label>
-                <label><span>สถานะ</span><input id="newPeriodStatus" value="ยังไม่เริ่ม"></label>
-                <label style="grid-column:1/-1"><span>รายละเอียด</span><textarea id="newPeriodDescription"></textarea></label>
-                <button class="primary" data-action="add-period">เพิ่มงวด</button>
-              </div>
-            </div>
-            <div class="panel">
-              <div class="panel-head"><h2>เพิ่มรายการในงวดย่อย</h2></div>
-              <div class="panel-body form-grid">
-                <label style="grid-column:1/-1"><span>งวดย่อย</span><select id="newItemPeriod">${options}</select></label>
-                <label><span>รายการงาน</span><input id="newItemName" placeholder="ชื่องานย่อย"></label>
-                <label><span>มูลค่าค่าแรง 100%</span><input id="newItemValue" type="number" min="0" step="0.01"></label>
-                <label><span>ความก้าวหน้า (%)</span><input id="newItemProgress" type="number" min="0" step="1" value="0"></label>
-                <button class="primary" data-action="add-item">เพิ่มรายการ</button>
-              </div>
-            </div>
+          <div class="period-board">
+            ${buildings.map((building) => renderPeriodBuilding(building, filters)).join("") || `<div class="panel"><div class="period-empty">ยังไม่มีงวดตามตัวกรองนี้</div></div>`}
           </div>
-          <div class="split">${cards}</div>
         </div>
       `;
     }
 
-    function periodCard(period) {
+    function renderPeriodBuilding(building, filters) {
+      const all = state.periods.filter((period) => period.building === building);
+      const groups = periodGroupRows(building, filters);
+      const activeCount = all.filter(periodEnabled).length;
+      return `
+        <div class="panel">
+          <div class="panel-head">
+            <div class="inline-list">
+              <h2>หลัง ${esc(building)}</h2>
+              <span class="pill">เลือกใช้ ${activeCount}/${all.length} งวด</span>
+            </div>
+            <div class="inline-list">
+              <button data-action="enable-building-periods" data-building="${esc(building)}">เลือกใช้ทั้งหมด</button>
+              <button data-action="disable-building-periods" data-building="${esc(building)}">ไม่เลือกทั้งหมด</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            ${groups.length ? `
+              <table class="period-table">
+                <thead>
+                  <tr>
+                    <th>ใช้</th>
+                    <th>งวดงาน</th>
+                    <th>งวดย่อย</th>
+                    <th class="num">มูลค่างวด</th>
+                    <th class="num">ค่าแรงงวด</th>
+                    <th>สถานะ</th>
+                    <th class="num">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody>${groups.map(renderPeriodGroup).join("")}</tbody>
+              </table>
+            ` : `<div class="period-empty">ยังไม่มีงวดตามตัวกรองนี้</div>`}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPeriodGroup(group) {
+      const summary = groupSummary(group.rows);
+      const percent = n(summary.mainValue) ? summary.subValue / summary.mainValue * 100 : 0;
+      const over = summary.mainValue > 0 && summary.subValue > summary.mainValue;
+      const first = group.rows[0];
+      const canSplit = group.rows.length === 1 && String(first.no) === periodMainNo(first);
+      return `
+        <tr class="period-main-row">
+          <td></td>
+          <td><span class="period-no">${esc(group.mainNo)}</span></td>
+          <td>${summary.count > 1 ? `${summary.count} งวดย่อย` : canSplit ? "ยังไม่ซอยงวด" : "1 งวดย่อย"}</td>
+          <td class="num">${money(summary.mainValue, 0)}</td>
+          <td class="num">${money(summary.laborValue, 0)}</td>
+          <td><span class="pill ${over ? "red" : "green"}">${over ? "มูลค่าย่อยเกิน" : `ใช้ ${money(percent, 1)}%`}</span></td>
+          <td><div class="period-actions">${canSplit ? `<button data-action="split-period" data-period-id="${first.id}">ซอยงวด</button>` : ""}</div></td>
+        </tr>
+        ${group.rows.map(renderPeriodRow).join("")}
+      `;
+    }
+
+    function renderPeriodRow(period) {
+      const laborValue = periodLaborValue(period);
+      const statusClass = periodStatusClass(period.status);
+      const subPercent = n(period.mainValue) ? n(period.periodValue) / n(period.mainValue) * 100 : 0;
+      return `
+        <tr class="period-sub-row ${periodEnabled(period) ? "is-selected" : "is-disabled"}" data-period-row="${period.id}">
+          <td>
+            <label class="check-row" title="เลือกใช้ในแผนเบิกงวดรอบนี้">
+              <input type="checkbox" data-period-enabled="${period.id}" ${periodEnabled(period) ? "checked" : ""}>
+            </label>
+          </td>
+          <td class="period-indent"><span class="period-no">${esc(period.no)}</span></td>
+          <td>
+            <strong>${esc(periodDisplayTitle(period))}</strong>
+            <span class="period-mini-note"> · ${money(subPercent, 1)}% ของงวดหลัก</span>
+          </td>
+          <td class="num">${money(period.periodValue, 0)}</td>
+          <td class="num">${money(laborValue, 0)}</td>
+          <td><span class="pill ${statusClass}">${esc(period.status || "รอทำ")}</span></td>
+          <td><div class="period-actions"><button data-action="open-period-editor" data-period-id="${period.id}">เปิด</button></div></td>
+        </tr>
+      `;
+    }
+
+    function renderPeriodEditor(period) {
       const laborValue = periodLaborValue(period);
       const subPercent = n(period.mainValue) ? n(period.periodValue) / n(period.mainValue) * 100 : 0;
       const laborRatio = n(period.periodValue) ? laborValue / n(period.periodValue) * 100 : 0;
+      const group = fullMainGroup(period);
+      const canSplit = group.length === 1 && String(period.no) === periodMainNo(period);
       return `
-        <div class="item-card ${periodEnabled(period) ? "" : "is-disabled"}" data-period-card="${period.id}">
-          <div class="item-card-head">
-            <div class="inline-list">
-              <span class="pill green">หลัง ${period.building}</span>
-              <span class="pill">งวดหลัก ${esc(periodMainNo(period))}</span>
-              <strong>งวดย่อย ${esc(period.no)}</strong>
-              <span>${esc(period.title)}</span>
+        <div class="section period-editor">
+          <div class="period-editor-head">
+            <div class="period-editor-title">
+              <small>หลัง ${esc(period.building)} · งวดหลัก ${esc(periodMainNo(period))}</small>
+              <h2>${esc(periodDisplayTitle(period))}</h2>
             </div>
             <div class="inline-list">
               <label class="check-row"><input type="checkbox" data-period-enabled="${period.id}" ${periodEnabled(period) ? "checked" : ""}> เลือกใช้รอบนี้</label>
+              <button data-action="close-period-editor">กลับรายการงวด</button>
               <button class="danger" data-action="delete-period" data-period-id="${period.id}">ลบงวด</button>
             </div>
           </div>
-          <div class="panel-body">
-            <div class="quick-summary" style="margin-bottom:10px">
-              <div class="metric"><span>มูลค่างวดหลัก</span><strong>${money(period.mainValue, 0)}</strong></div>
-              <div class="metric"><span>มูลค่างวดย่อย</span><strong>${money(period.periodValue, 0)}</strong></div>
-              <div class="metric"><span>% ของงวดหลัก</span><strong>${money(subPercent, 1)}%</strong></div>
-              <div class="metric"><span>มูลค่าค่าแรงรวม</span><strong>${money(laborValue, 0)}</strong></div>
-              <div class="metric"><span>ค่าแรงเทียบงวดย่อย</span><strong>${money(laborRatio, 1)}%</strong></div>
+          <div class="period-editor-meta">
+            <div class="metric"><span>มูลค่างวดหลัก</span><strong>${money(period.mainValue, 0)}</strong></div>
+            <div class="metric"><span>มูลค่างวดย่อย</span><strong>${money(period.periodValue, 0)}</strong></div>
+            <div class="metric"><span>% ของงวดหลัก</span><strong>${money(subPercent, 1)}%</strong></div>
+            <div class="metric"><span>ค่าแรงงวด</span><strong>${money(laborValue, 0)}</strong></div>
+            <div class="metric"><span>ค่าแรงเทียบงวดย่อย</span><strong>${money(laborRatio, 1)}%</strong></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <h2>แก้ข้อมูลงวด</h2>
+              <span class="pill">บันทึกอัตโนมัติ</span>
             </div>
-            <div class="form-grid">
+            <div class="panel-body form-grid">
+              <label><span>อาคาร</span><select data-period-field="building" data-period-id="${period.id}">${allBuildings().map((building) => `<option value="${esc(building)}" ${period.building === building ? "selected" : ""}>หลัง ${esc(building)}</option>`).join("")}</select></label>
               <label><span>งวดหลัก</span><input data-period-field="mainNo" data-period-id="${period.id}" value="${esc(periodMainNo(period))}"></label>
               <label><span>มูลค่างวดหลัก</span><input type="number" step="0.01" data-period-field="mainValue" data-period-id="${period.id}" value="${esc(period.mainValue)}"></label>
               <label><span>งวดย่อย</span><input data-period-field="no" data-period-id="${period.id}" value="${esc(period.no)}"></label>
               <label><span>มูลค่างวดย่อย</span><input type="number" step="0.01" data-period-field="periodValue" data-period-id="${period.id}" value="${esc(period.periodValue)}"></label>
               <label><span>% ของงวดหลัก</span><input class="num" type="number" step="0.01" data-period-field="periodPercent" data-period-id="${period.id}" value="${esc(money(subPercent, 2).replace(/,/g, ""))}"></label>
-              <label><span>ชื่องวดย่อย</span><input data-period-field="title" data-period-id="${period.id}" value="${esc(period.title)}"></label>
-              <label><span>สถานะ</span><input data-period-field="status" data-period-id="${period.id}" value="${esc(period.status)}"></label>
+              <label><span>ค่าแรงงวด</span><div class="period-readonly">${money(laborValue, 0)}</div></label>
+              <label><span>สถานะ</span><select class="status-select" data-period-field="status" data-period-id="${period.id}">${periodStatusOptions(period.status)}</select></label>
               <label style="grid-column:1/-1"><span>รายละเอียด</span><textarea data-period-field="description" data-period-id="${period.id}">${esc(period.description)}</textarea></label>
             </div>
-            <div class="table-wrap" style="margin-top:10px">
-              <table>
-                <thead><tr><th>รายการ</th><th class="num">มูลค่าค่าแรง</th><th class="num">%</th><th></th></tr></thead>
-                <tbody>
-                  ${period.items.map((item) => `
-                    <tr>
-                      <td><input data-item-field="name" data-period-id="${period.id}" data-item-id="${item.id}" value="${esc(item.name)}"></td>
-                      <td><input class="num" type="number" step="0.01" data-item-field="laborValue" data-period-id="${period.id}" data-item-id="${item.id}" value="${esc(item.laborValue)}"></td>
-                      <td><input class="num" type="number" step="1" data-item-field="progressPct" data-period-id="${period.id}" data-item-id="${item.id}" value="${esc(item.progressPct)}"></td>
-                      <td><button class="danger" data-action="delete-item" data-period-id="${period.id}" data-item-id="${item.id}">ลบ</button></td>
-                    </tr>
-                  `).join("")}
-                </tbody>
-              </table>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <h2>การซอยงวด</h2>
+              ${canSplit ? `<button data-action="split-period" data-period-id="${period.id}">ซอยงวดงาน</button>` : `<span class="pill">มี ${group.length} งวดย่อยในงวดหลักนี้</span>`}
+            </div>
+            <div class="panel-body">
+              <p class="muted">เมื่อต้องแก้รายการงาน, มูลค่าค่าแรงรายรายการ หรือ % ความก้าวหน้า ให้กลับไปแก้ในหน้าแผนงวดงาน เพื่อให้ตารางหลักเป็นแหล่งข้อมูลเดียว</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderNewPeriodEditor() {
+      const draft = state.ui.newPeriodDraft || {};
+      const building = draft.building || (state.ui.periodBuilding && state.ui.periodBuilding !== "all" ? state.ui.periodBuilding : "G");
+      return `
+        <div class="section period-editor">
+          <div class="period-editor-head">
+            <div class="period-editor-title">
+              <small>เพิ่มงวดใหม่</small>
+              <h2>${draft.no ? `งวดงานที่ ${esc(draft.no)}` : "กรอกข้อมูลงวด"}</h2>
+            </div>
+            <div class="inline-list">
+              <button data-action="close-period-editor">กลับรายการงวด</button>
+              <button class="primary" data-action="add-period">บันทึกงวด</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>ข้อมูลงวด</h2></div>
+            <div class="panel-body form-grid">
+              <label><span>อาคาร</span><select id="newPeriodBuilding">${allBuildings().map((row) => `<option value="${esc(row)}" ${building === row ? "selected" : ""}>หลัง ${esc(row)}</option>`).join("")}</select></label>
+              <label><span>งวดหลัก</span><input id="newPeriodMainNo" value="${esc(draft.mainNo || "")}" placeholder="เช่น 5"></label>
+              <label><span>มูลค่างวดหลัก</span><input id="newPeriodMainValue" value="${esc(draft.mainValue || "")}" type="number" min="0" step="0.01"></label>
+              <label><span>งวดย่อย</span><input id="newPeriodNo" value="${esc(draft.no || "")}" placeholder="เช่น 5.1"></label>
+              <label><span>มูลค่างวดย่อย</span><input id="newPeriodValue" value="${esc(draft.periodValue || "")}" type="number" min="0" step="0.01"></label>
+              <label><span>% ของงวดหลัก</span><input id="newPeriodPercent" value="${esc(draft.periodPercent || "")}" type="number" min="0" step="0.01"></label>
+              <label><span>สถานะ</span><select id="newPeriodStatus">${periodStatusOptions(draft.status || "รอทำ")}</select></label>
+              <label style="grid-column:1/-1"><span>รายละเอียด</span><textarea id="newPeriodDescription">${esc(draft.description || "")}</textarea></label>
             </div>
           </div>
         </div>
@@ -3209,9 +3499,121 @@
       }
     }
 
+    function updatePeriodField(target) {
+      const period = getPeriod(target.dataset.periodId);
+      if (!period) return false;
+      const field = target.dataset.periodField;
+      if (field === "mainNo") {
+        period.mainNo = target.value.trim() || mainNoFromNo(period.no);
+      } else if (field === "building") {
+        period.building = target.value;
+      } else if (field === "mainValue") {
+        setPeriodMainValue(period, target.value);
+        syncPeriodInputs(period);
+      } else if (field === "periodValue") {
+        setPeriodValue(period, target.value);
+        syncPeriodInputs(period);
+      } else if (field === "periodPercent") {
+        setPeriodPercent(period, target.value);
+        syncPeriodInputs(period);
+      } else if (field === "no") {
+        const previousMainFromNo = mainNoFromNo(period.no);
+        period.no = target.value.trim();
+        if (!period.mainNo || period.mainNo === previousMainFromNo) period.mainNo = mainNoFromNo(target.value);
+        period.title = periodDisplayTitle(period);
+      } else {
+        period[field] = target.value;
+      }
+      saveState();
+      renderNav();
+      return true;
+    }
+
+    function openNewPeriodEditor(draft = {}) {
+      document.activeElement?.blur?.();
+      state.ui.editingPeriodId = "__new__";
+      state.ui.newPeriodDraft = draft;
+      saveState();
+      renderPeriods();
+      scrollPageTop();
+    }
+
+    function openPeriodEditor(id) {
+      if (!getPeriod(id)) return;
+      document.activeElement?.blur?.();
+      state.ui.editingPeriodId = id;
+      state.ui.newPeriodDraft = null;
+      saveState();
+      renderPeriods();
+      scrollPageTop();
+    }
+
+    function closePeriodEditor() {
+      document.activeElement?.blur?.();
+      state.ui.editingPeriodId = "";
+      state.ui.newPeriodDraft = null;
+      saveState();
+      renderPeriods();
+      scrollPageTop();
+    }
+
+    function scrollPageTop() {
+      const reset = () => {
+        const rootBehavior = document.documentElement.style.scrollBehavior;
+        const bodyBehavior = document.body.style.scrollBehavior;
+        document.documentElement.style.scrollBehavior = "auto";
+        document.body.style.scrollBehavior = "auto";
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+        document.documentElement.style.scrollBehavior = rootBehavior;
+        document.body.style.scrollBehavior = bodyBehavior;
+      };
+      reset();
+      requestAnimationFrame(reset);
+      setTimeout(reset, 40);
+    }
+
+    function splitPeriod(id) {
+      const period = getPeriod(id);
+      if (!period) return;
+      const rows = fullMainGroup(period);
+      const mainNo = periodMainNo(period);
+      recordHistory("ซอยงวดงาน");
+      if (rows.length === 1 && String(period.no) === mainNo) {
+        period.no = `${mainNo}.1`;
+        period.title = periodDisplayTitle(period);
+        updatePeriodPercent(period);
+      }
+      const refreshedRows = fullMainGroup(period);
+      const usedValue = refreshedRows.reduce((sum, row) => sum + n(row.periodValue), 0);
+      const remaining = Math.max(0, n(period.mainValue) - usedValue);
+      const draft = {
+        building: period.building,
+        mainNo,
+        mainValue: n(period.mainValue),
+        no: nextSubPeriodNo(period),
+        periodValue: remaining || "",
+        periodPercent: remaining && n(period.mainValue) ? Number((remaining / n(period.mainValue) * 100).toFixed(2)) : "",
+        status: "รอทำ",
+        description: ""
+      };
+      state.ui.editingPeriodId = "__new__";
+      state.ui.newPeriodDraft = draft;
+      saveState();
+      renderPeriods();
+      scrollPageTop();
+      showToast("เปิดฟอร์มซอยงวดใหม่แล้ว");
+    }
+
     function handleClick(event) {
       const button = event.target.closest("button");
-      if (!button) return;
+      if (!button) {
+        if (event.target.closest("input, select, textarea, label, a")) return;
+        const row = event.target.closest("[data-period-row]");
+        if (row) return openPeriodEditor(row.dataset.periodRow);
+        return;
+      }
       const tab = button.dataset.tab;
       if (tab) return setActiveTab(tab);
       if (button.dataset.planView) {
@@ -3256,6 +3658,11 @@
         return renderCellDialog();
       }
       if (action === "add-period") return addPeriod();
+      if (action === "open-new-period") return openNewPeriodEditor();
+      if (action === "open-period-editor") return openPeriodEditor(button.dataset.periodId);
+      if (action === "close-period-editor") return closePeriodEditor();
+      if (action === "split-period") return splitPeriod(button.dataset.periodId);
+      if (action === "apply-period-filter") return renderPeriods();
       if (action === "add-item") return addItem();
       if (action === "enable-building-periods") return setBuildingPeriodsEnabled(button.dataset.building, true);
       if (action === "disable-building-periods") return setBuildingPeriodsEnabled(button.dataset.building, false);
@@ -3308,6 +3715,14 @@
         const field = target.dataset.quickField;
         return updateQuickField(field, target.value, !["planned", "hours", "machineAmount"].includes(field));
       }
+      if (target.dataset.periodFilter) {
+        const key = target.dataset.periodFilter;
+        if (key === "search") state.ui.periodSearch = target.value;
+        if (key === "building") state.ui.periodBuilding = target.value;
+        if (key === "status") state.ui.periodStatus = target.value;
+        saveState();
+        return;
+      }
       if (["newPeriodMainValue", "newPeriodValue", "newPeriodPercent"].includes(target.id)) {
         return syncNewPeriodInputs(target.id);
       }
@@ -3320,29 +3735,7 @@
         syncNewMainValueFromExisting();
       }
       if (target.dataset.periodField) {
-        const period = getPeriod(target.dataset.periodId);
-        if (period) {
-          const field = target.dataset.periodField;
-          if (field === "mainNo") {
-            period.mainNo = target.value.trim() || mainNoFromNo(period.no);
-          } else if (field === "mainValue") {
-            setPeriodMainValue(period, target.value);
-            syncPeriodInputs(period);
-          } else if (field === "periodValue") {
-            setPeriodValue(period, target.value);
-            syncPeriodInputs(period);
-          } else if (field === "periodPercent") {
-            setPeriodPercent(period, target.value);
-            syncPeriodInputs(period);
-          } else if (field === "no") {
-            period.no = target.value;
-            if (!period.mainNo || period.mainNo === mainNoFromNo(period.no)) period.mainNo = mainNoFromNo(target.value);
-          } else {
-            period[field] = target.value;
-          }
-          saveState();
-          renderNav();
-        }
+        return updatePeriodField(target);
       }
       if (target.dataset.itemField) {
         const period = getPeriod(target.dataset.periodId);
@@ -3424,6 +3817,18 @@
         saveState();
         return renderPlan();
       }
+      if (target.dataset.periodFilter) {
+        const key = target.dataset.periodFilter;
+        if (key === "search") state.ui.periodSearch = target.value;
+        if (key === "building") state.ui.periodBuilding = target.value;
+        if (key === "status") state.ui.periodStatus = target.value;
+        saveState();
+        return renderPeriods();
+      }
+      if (target.dataset.periodField) {
+        updatePeriodField(target);
+        return;
+      }
       if (target.dataset.periodEnabled) {
         const period = getPeriod(target.dataset.periodEnabled);
         if (!period) return;
@@ -3447,6 +3852,11 @@
     }
 
     function handleKeyDown(event) {
+      const periodRow = event.target?.closest?.("[data-period-row]");
+      if (periodRow && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();
+        return openPeriodEditor(periodRow.dataset.periodRow);
+      }
       if (activeTab !== "plan") return;
       if ($("#cellDialog")?.open) return;
       if (event.target?.closest?.("input, textarea, select, [contenteditable='true']")) return;
@@ -3487,7 +3897,7 @@
       if (!periodValue && periodPercent && mainValue) periodValue = mainValue * periodPercent / 100;
       if (!periodPercent && periodValue && mainValue) periodPercent = periodValue / mainValue * 100;
       if (!mainValue) mainValue = periodValue;
-      const title = $("#newPeriodTitle").value.trim() || `งวดงานที่ ${no}`;
+      const title = $("#newPeriodTitle")?.value.trim() || `งวดงานที่ ${no}`;
       if (!no) return showToast("กรอกเลขงวดก่อน");
       if (mainValue) {
         state.periods
@@ -3500,8 +3910,11 @@
       const newPeriod = { id: uid("p"), building, mainNo, mainValue, no, title, description: $("#newPeriodDescription").value.trim(), status: $("#newPeriodStatus").value.trim(), periodValue, periodPercent, enabled: true, items: [] };
       state.periods.push(newPeriod);
       setPeriodEnabled(newPeriod.id, true);
+      state.ui.editingPeriodId = newPeriod.id;
+      state.ui.newPeriodDraft = null;
       saveState();
       renderPeriods();
+      scrollPageTop();
       showToast("เพิ่มงวดแล้ว");
     }
 
@@ -3593,6 +4006,7 @@
     function deletePeriod(id) {
       if (!confirm("ลบงวดนี้?")) return;
       state.periods = state.periods.filter((period) => period.id !== id);
+      if (state.ui.editingPeriodId === id) state.ui.editingPeriodId = "";
       saveState();
       renderPeriods();
     }
