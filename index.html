@@ -722,6 +722,138 @@
       text-align: center;
       font-weight: 800;
     }
+    .attendance-shell {
+      display: grid;
+      gap: 12px;
+    }
+    .attendance-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .attendance-toolbar label {
+      min-width: 190px;
+    }
+    .attendance-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .attendance-summary .metric {
+      padding: 10px;
+      background: var(--bg);
+    }
+    .attendance-summary .metric strong {
+      font-size: 20px;
+    }
+    .attendance-grid {
+      max-height: calc(100vh - 265px);
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--bg);
+    }
+    .attendance-table {
+      min-width: 1180px;
+      border-collapse: separate;
+      border-spacing: 0;
+      table-layout: fixed;
+      font-size: 11px;
+    }
+    .attendance-table th,
+    .attendance-table td {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 0;
+      text-align: center;
+      height: 30px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .attendance-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 7;
+      height: 30px;
+      background: var(--surface-2);
+    }
+    .attendance-table .sticky {
+      position: sticky;
+      z-index: 8;
+      background: var(--bg);
+      text-align: left;
+      padding: 6px 8px;
+    }
+    .attendance-table thead .sticky {
+      z-index: 10;
+      background: var(--surface-2);
+    }
+    .attendance-table .col-code { left: 0; width: 90px; }
+    .attendance-table .col-name { left: 90px; width: 190px; }
+    .attendance-table .day-col { width: 34px; }
+    .attendance-table .month-head {
+      height: 26px;
+      font-weight: 900;
+      text-align: center;
+    }
+    .attendance-table .mark {
+      display: inline-grid;
+      place-items: center;
+      width: 100%;
+      min-height: 29px;
+      font-weight: 900;
+    }
+    .attendance-table .worked {
+      color: var(--primary);
+      font-size: 15px;
+    }
+    .attendance-table .absent {
+      color: var(--danger);
+      font-size: 14px;
+    }
+    .attendance-table .holiday,
+    .attendance-table .holiday .sticky {
+      background: var(--holiday) !important;
+      color: var(--holiday-dark);
+    }
+    .attendance-table .inactive td,
+    .attendance-table .inactive .sticky {
+      background: var(--surface-2);
+      color: var(--muted);
+    }
+    .attendance-table .summary-row td,
+    .attendance-table .summary-row .sticky {
+      background: var(--surface);
+      font-weight: 900;
+    }
+    .attendance-table .summary-row .holiday {
+      background: var(--holiday) !important;
+    }
+    .attendance-note {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .attendance-preview {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 10px;
+      overflow: auto;
+    }
+    .attendance-preview canvas {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      background: white;
+      border: 1px solid var(--line);
+    }
     .item-list {
       display: grid;
       gap: 10px;
@@ -1059,6 +1191,10 @@
       .content { padding: 12px; }
       .dashboard-grid { grid-template-columns: 1fr; }
       .dashboard-hero { padding: 12px; }
+      .attendance-grid { max-height: calc(100vh - 285px); }
+      .attendance-table { min-width: 1040px; }
+      .attendance-table .col-code { width: 78px; }
+      .attendance-table .col-name { width: 160px; left: 78px; }
       .plan-grid { max-height: calc(100vh - 260px); }
       .work-table { min-width: 3650px; }
       .work-table .sticky {
@@ -1091,6 +1227,14 @@
       .period-edit-layout { grid-template-columns: 1fr; }
       h1 { font-size: 18px; }
       .panel-head { align-items: stretch; }
+      .attendance-toolbar,
+      .attendance-toolbar .inline-list {
+        align-items: stretch;
+        width: 100%;
+      }
+      .attendance-toolbar label {
+        min-width: 100%;
+      }
       .segmented { width: 100%; }
       .segmented button { flex: 1; padding-inline: 8px; }
     }
@@ -1123,6 +1267,7 @@
         <section class="tab-panel active" id="tab-dashboard"></section>
         <section class="tab-panel" id="tab-plan"></section>
         <section class="tab-panel" id="tab-periods"></section>
+        <section class="tab-panel" id="tab-attendance"></section>
         <section class="tab-panel" id="tab-workers"></section>
         <section class="tab-panel" id="tab-machines"></section>
         <section class="tab-panel" id="tab-holidays"></section>
@@ -1157,6 +1302,7 @@
       ["dashboard", "สรุปโครงการ"],
       ["plan", "แผนงวดงาน"],
       ["periods", "งวดงานทั้งหมด"],
+      ["attendance", "วันมาทำงาน"],
       ["workers", "คนงาน"],
       ["machines", "เครื่องจักร"],
       ["holidays", "วันหยุดบริษัท"],
@@ -1433,6 +1579,7 @@
       if (!next.workPlans.some((plan) => plan.id === next.ui.activeWorkPlanId)) next.ui.activeWorkPlanId = next.workPlans[0]?.id || "";
       if (!["all", "plan", "actual", "planActual", "machine"].includes(next.ui.fillMode)) next.ui.fillMode = "all";
       if (!["hide", "move"].includes(next.ui.workerListMode)) next.ui.workerListMode = "hide";
+      if (!["G", "I", "GI"].includes(next.ui.attendanceView)) next.ui.attendanceView = "GI";
       return next;
     }
 
@@ -1959,6 +2106,101 @@
       return cellDraft.assignments.filter((row) => row.workerId === workerId).length > 1;
     }
 
+    function availableAttendanceMonths() {
+      const seen = new Map();
+      getDates().forEach((date) => {
+        const key = date.slice(0, 7);
+        if (!seen.has(key)) seen.set(key, date);
+      });
+      return [...seen.entries()].map(([key, date]) => ({ key, label: monthYearLabel(date) }));
+    }
+
+    function monthYearLabel(date) {
+      const d = new Date(`${date}T00:00:00`);
+      return d.toLocaleDateString("th-TH", { month: "long", year: "numeric" });
+    }
+
+    function selectedAttendanceMonth() {
+      const months = availableAttendanceMonths();
+      if (!months.length) return "";
+      const current = state.ui.attendanceMonth || planUpdateDate().slice(0, 7);
+      if (months.some((month) => month.key === current)) return current;
+      const updateMonth = planUpdateDate().slice(0, 7);
+      return months.some((month) => month.key === updateMonth) ? updateMonth : months[0].key;
+    }
+
+    function attendanceDates(monthKey = selectedAttendanceMonth()) {
+      return getDates().filter((date) => date.startsWith(`${monthKey}-`));
+    }
+
+    function attendanceView() {
+      return ["G", "I", "GI"].includes(state.ui.attendanceView) ? state.ui.attendanceView : "GI";
+    }
+
+    function attendanceViewLabel(view = attendanceView()) {
+      return view === "GI" ? "รวม G+I" : `หลัง ${view}`;
+    }
+
+    function attendanceData(view = attendanceView(), monthKey = selectedAttendanceMonth()) {
+      const dates = attendanceDates(monthKey);
+      const dateSet = new Set(dates);
+      const cutoff = planUpdateDate();
+      const workerDayMap = new Map();
+      const dayWorkers = new Map(dates.map((date) => [date, new Set()]));
+      const dayCosts = new Map(dates.map((date) => [date, 0]));
+      periodsForView(view).forEach((period) => {
+        period.items.forEach((item) => {
+          const actual = ensurePlanItemData(item).actual || {};
+          Object.entries(actual).forEach(([date, entries]) => {
+            if (!dateSet.has(date)) return;
+            (entries || []).forEach((entry) => {
+              if (!entry.workerId) return;
+              const worker = getWorker(entry.workerId);
+              if (!worker) return;
+              const workerDays = workerDayMap.get(entry.workerId) || new Map();
+              const current = workerDays.get(date) || { units: 0, cost: 0 };
+              current.units += laborUnits(entry);
+              current.cost += laborAmount(entry);
+              workerDays.set(date, current);
+              workerDayMap.set(entry.workerId, workerDays);
+              dayWorkers.get(date)?.add(entry.workerId);
+              dayCosts.set(date, (dayCosts.get(date) || 0) + laborAmount(entry));
+            });
+          });
+        });
+      });
+      const rows = [...state.workers]
+        .sort((a, b) => naturalSort(a.code, b.code) || naturalSort(a.name, b.name))
+        .map((worker) => {
+          const days = workerDayMap.get(worker.id) || new Map();
+          return {
+            worker,
+            days,
+            workedCount: days.size,
+            monthCost: [...days.values()].reduce((sum, row) => sum + row.cost, 0)
+          };
+        });
+      return {
+        view,
+        monthKey,
+        dates,
+        cutoff,
+        rows,
+        activeWorkers: rows.filter((row) => row.workedCount > 0).length,
+        holidays: dates.filter(isHoliday).length,
+        dayWorkers,
+        dayCosts
+      };
+    }
+
+    function attendanceMark(row, date, cutoff = planUpdateDate()) {
+      if (isHoliday(date)) return "holiday";
+      if (row.days.has(date)) return "worked";
+      if (!row.workedCount) return "inactive";
+      if (date <= cutoff) return "absent";
+      return "blank";
+    }
+
     function renderNav() {
       const desktop = $("#desktopNav");
       const mobile = $("#mobileNav");
@@ -1984,6 +2226,7 @@
       if (activeTab === "dashboard") renderDashboard();
       if (activeTab === "plan") renderPlan();
       if (activeTab === "periods") renderPeriods();
+      if (activeTab === "attendance") renderAttendance();
       if (activeTab === "workers") renderWorkers();
       if (activeTab === "machines") renderMachines();
       if (activeTab === "holidays") renderHolidays();
@@ -2902,6 +3145,95 @@
         </div>
       `;
       requestAnimationFrame(() => drawReport($("#reportCanvas"), view, 1));
+    }
+
+    function renderAttendance() {
+      const view = attendanceView();
+      const monthKey = selectedAttendanceMonth();
+      state.ui.attendanceMonth = monthKey;
+      const data = attendanceData(view, monthKey);
+      const el = $("#tab-attendance");
+      const monthOptions = availableAttendanceMonths().map((month) => `<option value="${month.key}" ${month.key === monthKey ? "selected" : ""}>${esc(month.label)}</option>`).join("");
+      const dayHeaders = data.dates.map((date) => `<th class="day-col ${isHoliday(date) ? "holiday" : ""}">${dayNumber(date)}</th>`).join("");
+      const workerRows = data.rows.map((row) => {
+        const inactive = row.workedCount === 0;
+        const cells = data.dates.map((date) => {
+          const mark = attendanceMark(row, date, data.cutoff);
+          if (mark === "holiday") return `<td class="holiday"></td>`;
+          if (mark === "worked") return `<td><span class="mark worked">✓</span></td>`;
+          if (mark === "absent") return `<td><span class="mark absent">×</span></td>`;
+          return `<td></td>`;
+        }).join("");
+        return `
+          <tr class="${inactive ? "inactive" : ""}">
+            <td class="sticky col-code">${esc(row.worker.code)}</td>
+            <td class="sticky col-name">${esc(row.worker.name)}</td>
+            ${cells}
+            <td class="num">${row.workedCount ? money(row.monthCost, 0) : ""}</td>
+          </tr>
+        `;
+      }).join("") || `<tr><td colspan="${data.dates.length + 3}" class="muted">ยังไม่มีรายชื่อคนงาน</td></tr>`;
+      const countRow = data.dates.map((date) => `<td class="${isHoliday(date) ? "holiday" : ""}">${data.dayWorkers.get(date)?.size || 0}</td>`).join("");
+      const costRow = data.dates.map((date) => `<td class="num ${isHoliday(date) ? "holiday" : ""}">${money(data.dayCosts.get(date) || 0, 0)}</td>`).join("");
+      el.innerHTML = `
+        <div class="attendance-shell">
+          <div class="attendance-toolbar">
+            <div class="inline-list">
+              <label><span>เดือน</span><select id="attendanceMonthSelect">${monthOptions}</select></label>
+              <div class="segmented" aria-label="ตัวกรองอาคาร">
+                ${["GI", "G", "I"].map((v) => `<button data-attendance-view="${v}" aria-pressed="${view === v}">${attendanceViewLabel(v)}</button>`).join("")}
+              </div>
+            </div>
+            <div class="inline-list">
+              <button class="primary" data-action="download-attendance-png">Export PNG</button>
+              <button data-action="download-attendance-pdf">Export PDF</button>
+            </div>
+          </div>
+          <div class="attendance-summary">
+            <div class="metric"><span>มุมมอง</span><strong>${esc(attendanceViewLabel(view))}</strong></div>
+            <div class="metric"><span>คนงานทั้งหมด</span><strong>${money(state.workers.length, 0)}</strong></div>
+            <div class="metric"><span>มาทำงานเดือนนี้</span><strong>${money(data.activeWorkers, 0)}</strong></div>
+            <div class="metric"><span>วันหยุดบริษัท</span><strong>${money(data.holidays, 0)}</strong></div>
+            <div class="metric"><span>ค่าแรงรวมเดือนนี้</span><strong>${money([...data.dayCosts.values()].reduce((sum, value) => sum + value, 0), 0)}</strong></div>
+          </div>
+          <div class="attendance-note">
+            <span class="pill green">✓ มาทำงาน</span>
+            <span class="pill danger">× ขาด</span>
+            <span class="pill">เทา = วันหยุด / ไม่มีงานทั้งเดือน</span>
+            <span>แสดงสถานะขาดถึงวันที่ Update เท่านั้น</span>
+          </div>
+          <div class="attendance-grid">
+            <table class="attendance-table">
+              <thead>
+                <tr>
+                  <th class="sticky col-code" rowspan="2">รหัส</th>
+                  <th class="sticky col-name" rowspan="2">ชื่อ-สกุล</th>
+                  <th class="month-head" colspan="${Math.max(1, data.dates.length)}">${esc(monthYearLabel(`${monthKey}-01`))}</th>
+                  <th rowspan="2">ค่าแรงรวม</th>
+                </tr>
+                <tr>${dayHeaders || `<th></th>`}</tr>
+              </thead>
+              <tbody>
+                ${workerRows}
+                <tr class="summary-row">
+                  <td class="sticky col-code" colspan="2">จำนวนคนลงงาน</td>
+                  ${countRow}
+                  <td></td>
+                </tr>
+                <tr class="summary-row">
+                  <td class="sticky col-code" colspan="2">ค่าแรงรวม</td>
+                  ${costRow}
+                  <td class="num">${money([...data.dayCosts.values()].reduce((sum, value) => sum + value, 0), 0)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="attendance-preview" aria-label="ตัวอย่าง export">
+            <canvas id="attendanceCanvas"></canvas>
+          </div>
+        </div>
+      `;
+      requestAnimationFrame(() => drawAttendanceReport($("#attendanceCanvas"), view, monthKey, 1));
     }
 
     function renderBackup() {
@@ -3851,6 +4183,11 @@
         saveState();
         return renderPlan();
       }
+      if (button.dataset.attendanceView) {
+        state.ui.attendanceView = button.dataset.attendanceView;
+        saveState();
+        return renderAttendance();
+      }
       const action = button.dataset.action;
       if (!action) return;
 
@@ -3914,6 +4251,8 @@
       if (action === "import-json") return importJson();
       if (action === "reset-sample") return resetSample();
       if (action === "download-report") return downloadReport();
+      if (action === "download-attendance-png") return downloadAttendancePng();
+      if (action === "download-attendance-pdf") return downloadAttendancePdf();
     }
 
     function handleInput(event) {
@@ -4038,6 +4377,11 @@
         state.ui.reportView = target.value;
         saveState();
         return renderReport();
+      }
+      if (target.id === "attendanceMonthSelect") {
+        state.ui.attendanceMonth = target.value;
+        saveState();
+        return renderAttendance();
       }
       if (target.id === "fillModeSelect") {
         state.ui.fillMode = target.value;
@@ -4637,6 +4981,188 @@
       document.body.appendChild(a);
       a.click();
       a.remove();
+    }
+
+    function attendanceFilename(ext) {
+      const now = new Date();
+      const stamp = `${localISODate(now)}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+      return `tman-attendance-${attendanceView()}-${selectedAttendanceMonth()}-${stamp}.${ext}`;
+    }
+
+    function downloadAttendancePng() {
+      const canvas = document.createElement("canvas");
+      drawAttendanceReport(canvas, attendanceView(), selectedAttendanceMonth(), 2);
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = attendanceFilename("png");
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    function downloadAttendancePdf() {
+      const canvas = document.createElement("canvas");
+      drawAttendanceReport(canvas, attendanceView(), selectedAttendanceMonth(), 2);
+      const blob = canvasToPdfBlob(canvas);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = attendanceFilename("pdf");
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    function canvasToPdfBlob(canvas) {
+      const jpeg = canvas.toDataURL("image/jpeg", 0.94);
+      const binary = atob(jpeg.split(",")[1]);
+      const imageBytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) imageBytes[i] = binary.charCodeAt(i);
+      const landscape = canvas.width >= canvas.height;
+      const pageW = landscape ? 842 : 595;
+      const pageH = landscape ? 595 : 842;
+      const margin = 24;
+      const ratio = Math.min((pageW - margin * 2) / canvas.width, (pageH - margin * 2) / canvas.height);
+      const imgW = canvas.width * ratio;
+      const imgH = canvas.height * ratio;
+      const imgX = (pageW - imgW) / 2;
+      const imgY = (pageH - imgH) / 2;
+      const encoder = new TextEncoder();
+      const chunks = [];
+      const offsets = [0];
+      let length = 0;
+      const add = (text) => {
+        const bytes = encoder.encode(text);
+        chunks.push(bytes);
+        length += bytes.length;
+      };
+      const addBytes = (bytes) => {
+        chunks.push(bytes);
+        length += bytes.length;
+      };
+      const startObject = (id) => {
+        offsets[id] = length;
+        add(`${id} 0 obj\n`);
+      };
+      add("%PDF-1.4\n");
+      startObject(1);
+      add("<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+      startObject(2);
+      add("<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+      startObject(3);
+      add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`);
+      startObject(4);
+      add(`<< /Type /XObject /Subtype /Image /Width ${canvas.width} /Height ${canvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n`);
+      addBytes(imageBytes);
+      add("\nendstream\nendobj\n");
+      const content = `q\n${imgW.toFixed(2)} 0 0 ${imgH.toFixed(2)} ${imgX.toFixed(2)} ${imgY.toFixed(2)} cm\n/Im0 Do\nQ\n`;
+      startObject(5);
+      add(`<< /Length ${encoder.encode(content).length} >>\nstream\n${content}endstream\nendobj\n`);
+      const xref = length;
+      add(`xref\n0 6\n0000000000 65535 f \n`);
+      for (let i = 1; i <= 5; i++) add(`${String(offsets[i]).padStart(10, "0")} 00000 n \n`);
+      add(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+      const pdf = new Uint8Array(length);
+      let cursor = 0;
+      chunks.forEach((chunk) => {
+        pdf.set(chunk, cursor);
+        cursor += chunk.length;
+      });
+      return new Blob([pdf], { type: "application/pdf" });
+    }
+
+    function drawAttendanceReport(canvas, view = attendanceView(), monthKey = selectedAttendanceMonth(), scale = 1) {
+      if (!canvas) return;
+      const data = attendanceData(view, monthKey);
+      const rowH = 24 * scale;
+      const titleH = 82 * scale;
+      const pad = 14 * scale;
+      const codeW = 96 * scale;
+      const nameW = 210 * scale;
+      const dayW = 34 * scale;
+      const wageW = 112 * scale;
+      const leftW = codeW + nameW;
+      const tableW = leftW + data.dates.length * dayW + wageW;
+      const height = titleH + rowH * (2 + data.rows.length + 2) + pad * 2;
+      const width = tableW + pad * 2;
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, width, height);
+      ctx.lineWidth = 1 * scale;
+      ctx.strokeStyle = "#5c5c5c";
+      ctx.textBaseline = "middle";
+      const x0 = pad;
+      let y = pad;
+      ctx.font = `bold ${18 * scale}px Tahoma, sans-serif`;
+      ctx.fillStyle = "#111";
+      ctx.textAlign = "center";
+      ctx.fillText(`รายงานวันมาทำงานคนงาน ${state.settings.projectName}`, x0 + tableW / 2, y + 16 * scale);
+      ctx.font = `bold ${12 * scale}px Tahoma, sans-serif`;
+      ctx.fillStyle = "#444";
+      ctx.fillText(`${workPlanLabel()} · ${attendanceViewLabel(view)} · ${monthYearLabel(`${monthKey}-01`)} · อัปเดต ${dateLabel(planUpdateDate())}`, x0 + tableW / 2, y + 40 * scale);
+      const legendY = y + 64 * scale;
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#00543a";
+      ctx.fillText("✓ มาทำงาน", x0, legendY);
+      ctx.fillStyle = "#b3261e";
+      ctx.fillText("× ขาด", x0 + 92 * scale, legendY);
+      ctx.fillStyle = "#555";
+      ctx.fillText("สีเทา = วันหยุดบริษัท / คนงานไม่มีงานทั้งเดือน", x0 + 166 * scale, legendY);
+      y += titleH;
+
+      drawCell(ctx, x0, y, codeW, rowH * 2, "รหัส", true);
+      drawCell(ctx, x0 + codeW, y, nameW, rowH * 2, "ชื่อ-สกุล", true);
+      drawCell(ctx, x0 + leftW, y, data.dates.length * dayW, rowH, monthYearLabel(`${monthKey}-01`), true, "#f3f5f3");
+      drawCell(ctx, x0 + leftW + data.dates.length * dayW, y, wageW, rowH * 2, "ค่าแรงรวม", true);
+      y += rowH;
+      data.dates.forEach((date, index) => {
+        drawCell(ctx, x0 + leftW + index * dayW, y, dayW, rowH, dayNumber(date), true, isHoliday(date) ? "#c9c9c9" : "#f3f5f3");
+      });
+      y += rowH;
+
+      data.rows.forEach((row) => {
+        const inactive = row.workedCount === 0;
+        const rowFill = inactive ? "#eef0ee" : "#ffffff";
+        drawCell(ctx, x0, y, codeW, rowH, row.worker.code, false, rowFill, inactive ? "#777" : "#111", "center", true);
+        drawCell(ctx, x0 + codeW, y, nameW, rowH, row.worker.name, false, rowFill, inactive ? "#777" : "#111", "left");
+        data.dates.forEach((date, index) => {
+          const mark = attendanceMark(row, date, data.cutoff);
+          let text = "";
+          let bg = rowFill;
+          let color = inactive ? "#777" : "#111";
+          let bold = false;
+          if (mark === "holiday") bg = "#c9c9c9";
+          if (mark === "worked") {
+            text = "✓";
+            color = "#00543a";
+            bold = true;
+          }
+          if (mark === "absent") {
+            text = "×";
+            color = "#b3261e";
+            bold = true;
+          }
+          drawCell(ctx, x0 + leftW + index * dayW, y, dayW, rowH, text, false, bg, color, "center", bold);
+        });
+        drawCell(ctx, x0 + leftW + data.dates.length * dayW, y, wageW, rowH, row.workedCount ? money(row.monthCost, 0) : "", false, rowFill, inactive ? "#777" : "#111", "right", true);
+        y += rowH;
+      });
+
+      drawCell(ctx, x0, y, leftW, rowH, "จำนวนคนลงงาน", false, "#f3f5f3", "#111", "right", true);
+      data.dates.forEach((date, index) => {
+        drawCell(ctx, x0 + leftW + index * dayW, y, dayW, rowH, data.dayWorkers.get(date)?.size || 0, false, isHoliday(date) ? "#c9c9c9" : "#f3f5f3", "#111", "center", true);
+      });
+      drawCell(ctx, x0 + leftW + data.dates.length * dayW, y, wageW, rowH, "", false, "#f3f5f3");
+      y += rowH;
+      drawCell(ctx, x0, y, leftW, rowH, "ค่าแรงรวม", false, "#f3f5f3", "#111", "right", true);
+      data.dates.forEach((date, index) => {
+        drawCell(ctx, x0 + leftW + index * dayW, y, dayW, rowH, money(data.dayCosts.get(date) || 0, 0), false, isHoliday(date) ? "#c9c9c9" : "#f3f5f3", "#111", "center");
+      });
+      drawCell(ctx, x0 + leftW + data.dates.length * dayW, y, wageW, rowH, money([...data.dayCosts.values()].reduce((sum, value) => sum + value, 0), 0), false, "#f3f5f3", "#111", "right", true);
     }
 
     function drawReport(canvas, view, scale = 1) {
