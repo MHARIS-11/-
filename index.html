@@ -935,6 +935,56 @@
       white-space: normal;
       min-width: 220px;
     }
+    .period-filter-row {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) minmax(140px, 220px) auto;
+      gap: 8px;
+      align-items: end;
+    }
+    .new-period-primary {
+      grid-template-columns: minmax(170px, 0.8fr) minmax(160px, 0.8fr) minmax(180px, 1fr) minmax(150px, 0.8fr);
+    }
+    .sub-period-disclosure {
+      grid-column: 1 / -1;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--bg);
+      overflow: hidden;
+    }
+    .sub-period-disclosure summary {
+      cursor: pointer;
+      padding: 10px 12px;
+      font-weight: 900;
+      color: var(--primary);
+      list-style: none;
+    }
+    .sub-period-disclosure summary::-webkit-details-marker {
+      display: none;
+    }
+    .sub-period-disclosure summary::before {
+      content: "+";
+      display: inline-grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      margin-right: 8px;
+      border-radius: 999px;
+      background: var(--primary);
+      color: white;
+      font-weight: 900;
+    }
+    .sub-period-disclosure[open] summary::before {
+      content: "-";
+    }
+    .sub-period-fields {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(160px, 1fr));
+      gap: 10px;
+      padding: 0 12px 12px;
+    }
+    .sub-period-disclosure:not([open]) .sub-period-fields {
+      display: none;
+    }
     .period-main-row td {
       background: var(--surface);
       font-weight: 800;
@@ -995,6 +1045,25 @@
       justify-content: space-between;
       gap: 10px;
       flex-wrap: wrap;
+    }
+    .period-editor-head .period-editor-title {
+      flex: 1 1 260px;
+    }
+    .period-editor-head .period-head-actions {
+      margin-left: auto;
+    }
+    .period-back-button {
+      width: 42px;
+      height: 38px;
+      padding: 0;
+      border-color: var(--danger);
+      background: var(--danger) !important;
+      color: white !important;
+      font-size: 22px;
+      line-height: 1;
+    }
+    .period-back-button:hover {
+      filter: brightness(0.96);
     }
     .period-editor-title {
       display: grid;
@@ -1221,6 +1290,11 @@
       .topbar { padding: 10px 12px; }
       .split, .metric-grid { grid-template-columns: 1fr; }
       .form-grid { grid-template-columns: 1fr; }
+      .period-filter-row,
+      .new-period-primary,
+      .sub-period-fields {
+        grid-template-columns: 1fr;
+      }
       .period-toolbar-grid { grid-template-columns: 1fr; }
       .period-dense-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .period-dense-summary .metric { border-bottom: 1px solid var(--line); }
@@ -1313,6 +1387,11 @@
     const $ = (selector, root = document) => root.querySelector(selector);
     const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
     const uid = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+    const isoToday = () => {
+      const now = new Date();
+      const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0, 10);
+    };
     const money = (value, digits = 0) => Number(value || 0).toLocaleString("th-TH", { maximumFractionDigits: digits, minimumFractionDigits: digits });
     const qty = (value) => {
       const num = Number(value || 0);
@@ -1358,90 +1437,29 @@
     }
 
     function createDefaultState() {
-      const workers = [
-        { id: "w001", code: "W001", name: "คนงานตัวอย่าง 1", dailyWage: 625 },
-        { id: "w002", code: "W002", name: "คนงานตัวอย่าง 2", dailyWage: 537 },
-        { id: "w003", code: "W003", name: "คนงานตัวอย่าง 3", dailyWage: 503 },
-        { id: "w004", code: "W004", name: "คนงานตัวอย่าง 4", dailyWage: 432 }
-      ];
-      const machines = [
-        { id: "m001", name: "เครื่องจักรตัวอย่าง", dailyCost: 1620 }
-      ];
-      const gSteel = { id: "i_g_steel", name: "งานเหล็ก", laborValue: 147986.5, progressPct: 70, plan: makePlan(), actual: makeActual() };
-      const gForm = { id: "i_g_form", name: "งานไม้แบบ", laborValue: 124080, progressPct: 65, plan: makePlan(), actual: makeActual() };
-      const gConcrete = { id: "i_g_concrete", name: "งานคอนกรีตโครงสร้างผสมน้ำยากันซึม", laborValue: 104650, progressPct: 0, plan: makePlan(), actual: makeActual() };
-      const iFence = { id: "i_i_fence", name: "งานโครงสร้างรั้ว 50%", laborValue: 172233.8, progressPct: 25, plan: makePlan(), actual: makeActual() };
-      const iPipe = { id: "i_i_pipe", name: "งานวางท่อค.ส.ล. (120 เมตร)", laborValue: 79800, progressPct: 50, plan: makePlan(), actual: makeActual() };
-
-      setPlanRange(gSteel, "2026-05-26", "2026-05-30", 8);
-      setPlanRange(gSteel, "2026-06-01", "2026-06-05", 8);
-      setPlanRange(gSteel, "2026-06-06", "2026-06-09", 4);
-      setPlanRange(gForm, "2026-06-04", "2026-06-10", 4);
-      setPlanRange(gForm, "2026-07-04", "2026-07-10", 8);
-      setPlanRange(gConcrete, "2026-06-21", "2026-06-23", 8);
-      setPlanRange(iFence, "2026-05-26", "2026-05-30", 7);
-      setPlanRange(iFence, "2026-06-01", "2026-06-12", 8);
-      setPlanRange(iFence, "2026-06-15", "2026-06-27", 8);
-      setPlanRange(iFence, "2026-07-01", "2026-07-25", 8);
-      setPlanRange(iPipe, "2026-06-04", "2026-06-12", 4);
-      setPlanRange(iPipe, "2026-07-03", "2026-07-07", 5);
-
-      setActual(gSteel, "2026-05-26", [
-        { workerId: "w001", unit: "full", hours: 9 },
-        { workerId: "w002", unit: "full", hours: 9 }
-      ]);
-      setActual(gForm, "2026-06-06", [
-        { workerId: "w003", unit: "half", hours: 4.5 }
-      ]);
-      setActual(iFence, "2026-06-15", [
-        { workerId: "w004", unit: "full", hours: 9 }
-      ]);
-
       return {
         version: 1,
         settings: {
-          projectName: "TMAN RESIDENCE",
-          startDate: "2026-05-26",
-          endDate: "2026-07-31",
-          updateDate: "2026-06-19",
+          projectName: "TMAN WorkPlan",
+          startDate: isoToday(),
+          endDate: isoToday(),
+          updateDate: isoToday(),
           dayHours: 9,
           controlPercent: 70
         },
         ui: {
-          planView: "G",
-          manualView: "GI",
-          reportView: "GI"
+          planView: "",
+          manualView: "ALL",
+          reportView: "ALL",
+          attendanceView: "ALL"
         },
-        manual: {
-          G: { contractLaborCost: 0, costToUpdate: 0, note: "" },
-          I: { contractLaborCost: 0, costToUpdate: 0, note: "" },
-          GI: { contractLaborCost: 6946084.9, costToUpdate: 5991943.33, note: "ชี้แจงค่าแรงแล้ว เหลือค่าแรงที่" }
-        },
-        workers,
-        machines,
-        holidays: [
-          { id: "h_2026_05_31", date: "2026-05-31", name: "วันหยุดบริษัท" },
-          { id: "h_2026_06_13", date: "2026-06-13", name: "วันหยุดบริษัท" },
-          { id: "h_2026_06_14", date: "2026-06-14", name: "วันหยุดบริษัท" },
-          { id: "h_2026_06_28", date: "2026-06-28", name: "วันหยุดบริษัท" },
-          { id: "h_2026_07_12", date: "2026-07-12", name: "วันหยุดบริษัท" },
-          { id: "h_2026_07_26", date: "2026-07-26", name: "วันหยุดบริษัท" },
-          { id: "h_2026_07_27", date: "2026-07-27", name: "วันหยุดบริษัท" },
-          { id: "h_2026_07_28", date: "2026-07-28", name: "วันหยุดบริษัท" }
-        ],
-        periods: [
-          { id: "p_g_51", building: "G", mainNo: "5", mainValue: 376716.5, no: "5.1", title: "งวดงานที่ 5.1", description: "ได้ทำงานโครงสร้างเสา ชั้น 1 และคาน + พื้น ค.ส.ล. ชั้น 2 แล้วเสร็จ", status: "กำลังทำ", periodValue: 376716.5, periodPercent: 100, items: [gSteel, gForm, gConcrete] },
-          { id: "p_i_1", building: "I", mainNo: "1", mainValue: 172233.8, no: "1", title: "งวดงานที่ 1", description: "ได้ทำงานโครงสร้างรั้ว ค.ส.ล. แล้วเสร็จ 50%", status: "กำลังทำ", periodValue: 172233.8, periodPercent: 100, items: [iFence] },
-          { id: "p_i_9", building: "I", mainNo: "9", mainValue: 79800, no: "9", title: "งวดงานที่ 9", description: "ได้ทำงานระบบสุขาภิบาลภายนอก แล้วเสร็จ 30%", status: "กำลังทำ", periodValue: 79800, periodPercent: 100, items: [iPipe] }
-        ],
-        machineUsage: {
-          G: {},
-          I: {
-            "2026-05-29": [{ id: "mu_1", machineId: "m001", amount: 1620 }],
-            "2026-05-30": [{ id: "mu_2", machineId: "m001", amount: 1620 }],
-            "2026-06-01": [{ id: "mu_3", machineId: "m001", amount: 1620 }]
-          }
-        }
+        buildings: [""],
+        manual: { ALL: { contractLaborCost: 0, costToUpdate: 0, note: "" } },
+        workers: [],
+        machines: [],
+        holidays: [],
+        periods: [],
+        machineUsage: {}
       };
     }
 
@@ -1450,18 +1468,22 @@
     }
 
     function cloneMachineUsage(machineUsage = {}) {
-      return {
-        G: Object.fromEntries(Object.entries(machineUsage.G || {}).map(([date, rows]) => [date, (rows || []).map((row) => ({ ...row }))])),
-        I: Object.fromEntries(Object.entries(machineUsage.I || {}).map(([date, rows]) => [date, (rows || []).map((row) => ({ ...row }))]))
-      };
+      return Object.fromEntries(Object.entries(machineUsage || {}).map(([building, dates]) => [
+        building,
+        Object.fromEntries(Object.entries(dates || {}).map(([date, rows]) => [date, (rows || []).map((row) => ({ ...row }))]))
+      ]));
     }
 
     function cloneManual(manual = {}) {
-      return {
-        G: { contractLaborCost: 0, costToUpdate: 0, note: "", ...(manual.G || {}) },
-        I: { contractLaborCost: 0, costToUpdate: 0, note: "", ...(manual.I || {}) },
-        GI: { contractLaborCost: 0, costToUpdate: 0, note: "", ...(manual.GI || {}) }
-      };
+      const entries = Object.entries(manual || {});
+      const cloned = Object.fromEntries(entries.map(([key, value]) => [key, { contractLaborCost: 0, costToUpdate: 0, note: "", ...(value || {}) }]));
+      cloned.ALL = cloned.ALL || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+      if (manual.G || manual.I || manual.GI) {
+        cloned.G = cloned.G || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+        cloned.I = cloned.I || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+        cloned.GI = cloned.GI || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+      }
+      return cloned;
     }
 
     function legacyItemData(periods = []) {
@@ -1518,13 +1540,18 @@
       next.settings = next.settings || {};
       next.settings.dayHours = next.settings.dayHours || 9;
       next.manual = next.manual || {};
-      next.manual.G = next.manual.G || { contractLaborCost: 0, costToUpdate: 0, note: "" };
-      next.manual.I = next.manual.I || { contractLaborCost: 0, costToUpdate: 0, note: "" };
-      next.manual.GI = next.manual.GI || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+      next.manual = cloneManual(next.manual);
+      next.buildings = Array.isArray(next.buildings) ? next.buildings.map((row) => String(row || "").trim()).filter((row, index, list) => index === list.indexOf(row)) : [];
       next.workers = Array.isArray(next.workers) ? next.workers : [];
       next.machines = Array.isArray(next.machines) ? next.machines : [];
       next.holidays = Array.isArray(next.holidays) ? next.holidays : [];
       next.periods = Array.isArray(next.periods) ? next.periods : [];
+      next.periods.forEach((period) => {
+        period.building = String(period.building || "").trim();
+        if (period.building && !next.buildings.includes(period.building)) next.buildings.push(period.building);
+      });
+      if (next.buildings.some(Boolean)) next.buildings = next.buildings.filter(Boolean);
+      if (!next.buildings.length) next.buildings = [""];
       next.periods.forEach((period) => {
         period.items = Array.isArray(period.items) ? period.items : [];
         period.items.forEach((item) => {
@@ -1555,9 +1582,11 @@
         period.mainValue = n(period.mainValue) || group?.explicit || group?.sum || n(period.periodValue);
         period.periodPercent = period.mainValue ? n(period.periodValue) / n(period.mainValue) * 100 : n(period.periodPercent);
       });
-      next.machineUsage = next.machineUsage || { G: {}, I: {} };
-      next.machineUsage.G = next.machineUsage.G || {};
-      next.machineUsage.I = next.machineUsage.I || {};
+      next.machineUsage = cloneMachineUsage(next.machineUsage || {});
+      next.buildings.filter(Boolean).forEach((building) => {
+        next.machineUsage[building] = next.machineUsage[building] || {};
+        next.manual[building] = next.manual[building] || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+      });
       next.ui = next.ui || {};
       if (!Array.isArray(next.workPlans) || !next.workPlans.length) {
         const firstId = "wp_1";
@@ -1579,7 +1608,7 @@
       if (!next.workPlans.some((plan) => plan.id === next.ui.activeWorkPlanId)) next.ui.activeWorkPlanId = next.workPlans[0]?.id || "";
       if (!["all", "plan", "actual", "planActual", "machine"].includes(next.ui.fillMode)) next.ui.fillMode = "all";
       if (!["hide", "move"].includes(next.ui.workerListMode)) next.ui.workerListMode = "hide";
-      if (!["G", "I", "GI"].includes(next.ui.attendanceView)) next.ui.attendanceView = "GI";
+      if (!next.ui.attendanceView || (!["GI", "ALL"].includes(next.ui.attendanceView) && !allBuildingsFromState(next).includes(next.ui.attendanceView))) next.ui.attendanceView = next.periods.some((period) => ["G", "I"].includes(period.building)) ? "GI" : "ALL";
       return next;
     }
 
@@ -1667,10 +1696,11 @@
     }
 
     function activeMachineUsage(plan = activeWorkPlan()) {
-      if (!plan) return state.machineUsage || { G: {}, I: {} };
+      if (!plan) return state.machineUsage || {};
       plan.machineUsage = plan.machineUsage || {};
-      plan.machineUsage.G = plan.machineUsage.G || {};
-      plan.machineUsage.I = plan.machineUsage.I || {};
+      allBuildings().filter(Boolean).forEach((building) => {
+        plan.machineUsage[building] = plan.machineUsage[building] || {};
+      });
       return plan.machineUsage;
     }
 
@@ -1736,7 +1766,9 @@
     }
 
     function buildingsForView(view) {
-      return view === "GI" ? ["G", "I"] : [view];
+      if (view === "GI") return ["G", "I"].filter((building) => allBuildings().includes(building));
+      if (view === "ALL") return allBuildings().filter(Boolean);
+      return [view].filter(Boolean);
     }
 
     function periodEnabled(period) {
@@ -1770,7 +1802,34 @@
     }
 
     function allBuildings() {
-      return [...new Set(["G", "I", ...state.periods.map((period) => period.building).filter(Boolean)])];
+      return allBuildingsFromState(state);
+    }
+
+    function allBuildingsFromState(source) {
+      const saved = Array.isArray(source?.buildings) ? source.buildings : [];
+      const fromPeriods = Array.isArray(source?.periods) ? source.periods.map((period) => period.building) : [];
+      const list = [...saved, ...fromPeriods].map((row) => String(row || "").trim()).filter((row, index, rows) => index === rows.indexOf(row));
+      return list.length ? list : [""];
+    }
+
+    function buildingLabel(building) {
+      return building ? `หลัง ${building}` : "ยังไม่ตั้งชื่ออาคาร";
+    }
+
+    function combinedViewValue() {
+      const buildings = allBuildings().filter(Boolean);
+      return buildings.includes("G") && buildings.includes("I") ? "GI" : "ALL";
+    }
+
+    function viewLabel(view) {
+      if (view === "GI") return "รวม G+I";
+      if (view === "ALL") return "รวมทุกอาคาร";
+      return buildingLabel(view);
+    }
+
+    function buildingViewOptions() {
+      const buildings = allBuildings().filter(Boolean);
+      return buildings.length > 1 ? [...buildings, combinedViewValue()] : buildings;
     }
 
     function periodDisplayTitle(period) {
@@ -1784,14 +1843,12 @@
     function periodFilters() {
       return {
         search: String(state.ui.periodSearch || "").trim().toLowerCase(),
-        building: state.ui.periodBuilding || "all",
-        status: state.ui.periodStatus || "all"
+        building: state.ui.periodBuilding || "all"
       };
     }
 
     function periodMatchesFilters(period, filters = periodFilters()) {
       if (filters.building !== "all" && period.building !== filters.building) return false;
-      if (filters.status !== "all" && (period.status || "รอทำ") !== filters.status) return false;
       if (filters.search && !periodSearchText(period).includes(filters.search)) return false;
       return true;
     }
@@ -1860,11 +1917,12 @@
       return state.periods.filter((period) => buildings.includes(period.building) && periodEnabled(period));
     }
 
-    function getQuickEntry(view = state.ui.planView || "G") {
+    function getQuickEntry(view = state.ui.planView || allBuildings()[0] || "") {
       state.ui.quickEntry = state.ui.quickEntry || {};
       const quick = state.ui.quickEntry;
       if (view !== "GI") quick.building = view;
-      if (!["G", "I"].includes(quick.building)) quick.building = "G";
+      const buildings = allBuildings().filter(Boolean);
+      if (!buildings.includes(quick.building)) quick.building = buildings[0] || "";
       const buildingPeriods = periodsForBuilding(quick.building);
       if (!buildingPeriods.some((period) => period.id === quick.periodId)) quick.periodId = buildingPeriods[0]?.id || "";
       const period = getPeriod(quick.periodId);
@@ -2456,7 +2514,8 @@
     }
 
     function renderPlan() {
-      const view = state.ui.planView || "G";
+      const viewOptions = buildingViewOptions();
+      const view = viewOptions.includes(state.ui.planView) ? state.ui.planView : (viewOptions[0] || "");
       const dates = getDates();
       const el = $("#tab-plan");
       const fillMode = state.ui.fillMode || "all";
@@ -2468,7 +2527,7 @@
         <div class="plan-shell">
           <div class="plan-toolbar">
             <div class="segmented" aria-label="มุมมองแผน">
-              ${["G", "I", "GI"].map((v) => `<button data-plan-view="${v}" aria-pressed="${view === v}">${v === "GI" ? "รวม G+I" : `หลัง ${v}`}</button>`).join("")}
+              ${viewOptions.map((v) => `<button data-plan-view="${esc(v)}" aria-pressed="${view === v}">${esc(viewLabel(v))}</button>`).join("") || `<button data-action="open-new-period">เพิ่มงวดแรก</button>`}
             </div>
             <div class="inline-list">
               <label class="fill-mode"><span>Fill</span><select id="fillModeSelect">
@@ -2500,7 +2559,7 @@
 
     function renderQuickEntry(view) {
       const quick = getQuickEntry(view);
-      const buildingOptions = ["G", "I"].map((building) => `<option value="${building}" ${quick.building === building ? "selected" : ""}>หลัง ${building}</option>`).join("");
+      const buildingOptions = allBuildings().filter(Boolean).map((building) => `<option value="${esc(building)}" ${quick.building === building ? "selected" : ""}>${esc(buildingLabel(building))}</option>`).join("");
       const buildingPeriods = periodsForBuilding(quick.building);
       const period = getPeriod(quick.periodId) || buildingPeriods[0];
       const item = getItem(period, quick.itemId) || period?.items[0];
@@ -2694,11 +2753,9 @@
       const visiblePeriods = state.periods.filter((period) => periodMatchesFilters(period, filters));
       const selectedVisible = visiblePeriods.filter(periodEnabled);
       const buildings = allBuildings().filter((building) => filters.building === "all" || filters.building === building);
-      const statusOptions = [`<option value="all">ทุกสถานะ</option>`, ...PERIOD_STATUSES.map((status) => `<option value="${esc(status)}" ${filters.status === status ? "selected" : ""}>${esc(status)}</option>`)].join("");
-      const buildingOptions = [`<option value="all">ทุกอาคาร</option>`, ...allBuildings().map((building) => `<option value="${esc(building)}" ${filters.building === building ? "selected" : ""}>หลัง ${esc(building)}</option>`)].join("");
+      const buildingOptions = [`<option value="all">ทุกอาคาร</option>`, ...allBuildings().map((building) => `<option value="${esc(building)}" ${filters.building === building ? "selected" : ""}>${esc(buildingLabel(building))}</option>`)].join("");
       el.innerHTML = `
         <div class="section period-manager">
-          ${renderWorkPlanPanel()}
           <div class="panel">
             <div class="panel-head">
               <div>
@@ -2708,10 +2765,9 @@
               <button class="primary" data-action="open-new-period">เพิ่มงวด</button>
             </div>
             <div class="panel-body">
-              <div class="period-toolbar-grid">
+              <div class="period-filter-row">
                 <label><span>ค้นหาเลขงวด</span><input data-period-filter="search" value="${esc(state.ui.periodSearch || "")}" placeholder="เช่น 5, 5.1, 9"></label>
                 <label><span>อาคาร</span><select data-period-filter="building">${buildingOptions}</select></label>
-                <label><span>สถานะ</span><select data-period-filter="status">${statusOptions}</select></label>
                 <button data-action="apply-period-filter">ค้นหา</button>
               </div>
               <div class="period-summary-strip" style="margin-top:12px">
@@ -2738,7 +2794,7 @@
         <div class="panel">
           <div class="panel-head">
             <div class="inline-list">
-              <h2>หลัง ${esc(building)}</h2>
+              <h2>${esc(buildingLabel(building))}</h2>
               <span class="pill">เลือกใช้ ${activeCount}/${all.length} งวด</span>
             </div>
             <div class="inline-list">
@@ -2842,12 +2898,12 @@
       return `
         <div class="section period-editor">
           <div class="period-editor-head">
+            <button class="period-back-button" data-action="close-period-editor" title="กลับรายการงวด" aria-label="กลับรายการงวด">←</button>
             <div class="period-editor-title">
-              <small>หลัง ${esc(first.building)}</small>
+              <small>${esc(buildingLabel(first.building))}</small>
               <h2>งวดงานที่ ${esc(periodMainNo(first))}</h2>
             </div>
-            <div class="inline-list">
-              <button data-action="close-period-editor">กลับรายการงวด</button>
+            <div class="inline-list period-head-actions">
               <button class="danger" data-action="delete-main-period" data-period-main-key="${esc(first.building)}|${esc(periodMainNo(first))}">ลบงวด</button>
               <button class="primary" data-action="split-period" data-period-id="${first.id}">ซอยงวดงาน</button>
             </div>
@@ -2899,16 +2955,18 @@
       const laborRatio = n(period.periodValue) ? laborValue / n(period.periodValue) * 100 : 0;
       const group = fullMainGroup(period);
       const canSplit = !hasSubPeriods(group);
+      const buildingDatalist = `<datalist id="buildingList">${allBuildings().filter(Boolean).map((row) => `<option value="${esc(row)}">${esc(buildingLabel(row))}</option>`).join("")}</datalist>`;
       return `
         <div class="section period-editor">
+          ${buildingDatalist}
           <div class="period-editor-head">
+            <button class="period-back-button" data-action="close-period-editor" title="กลับรายการงวด" aria-label="กลับรายการงวด">←</button>
             <div class="period-editor-title">
-              <small>หลัง ${esc(period.building)} · งวดหลัก ${esc(periodMainNo(period))}</small>
+              <small>${esc(buildingLabel(period.building))} · งวดหลัก ${esc(periodMainNo(period))}</small>
               <h2>${esc(periodDisplayTitle(period))}</h2>
             </div>
-            <div class="inline-list">
+            <div class="inline-list period-head-actions">
               <label class="check-row"><input type="checkbox" data-period-enabled="${period.id}" ${periodEnabled(period) ? "checked" : ""}> เลือกใช้รอบนี้</label>
-              <button data-action="close-period-editor">กลับรายการงวด</button>
               <button class="danger" data-action="delete-period" data-period-id="${period.id}">ลบงวด</button>
               ${canSplit ? `<button class="primary" data-action="split-period" data-period-id="${period.id}">ซอยงวดงาน</button>` : ""}
             </div>
@@ -2929,7 +2987,7 @@
               <div class="period-sheet">
                 <table class="period-field-table">
                   <tbody>
-                    <tr><td>อาคาร</td><td><select data-period-field="building" data-period-id="${period.id}">${allBuildings().map((building) => `<option value="${esc(building)}" ${period.building === building ? "selected" : ""}>หลัง ${esc(building)}</option>`).join("")}</select></td></tr>
+                    <tr><td>อาคาร</td><td><input list="buildingList" data-period-field="building" data-period-id="${period.id}" value="${esc(period.building)}" placeholder="เช่น G"></td></tr>
                     <tr><td>งวดหลัก</td><td><input data-period-field="mainNo" data-period-id="${period.id}" value="${esc(periodMainNo(period))}"></td></tr>
                     <tr><td>งวดย่อย</td><td><input data-period-field="no" data-period-id="${period.id}" value="${esc(period.no)}"></td></tr>
                     <tr><td>มูลค่างวดหลัก</td><td><input type="number" step="0.01" data-period-field="mainValue" data-period-id="${period.id}" value="${esc(period.mainValue)}"></td></tr>
@@ -2988,29 +3046,38 @@
 
     function renderNewPeriodEditor() {
       const draft = state.ui.newPeriodDraft || {};
-      const building = draft.building || (state.ui.periodBuilding && state.ui.periodBuilding !== "all" ? state.ui.periodBuilding : "G");
+      const building = draft.building || (state.ui.periodBuilding && state.ui.periodBuilding !== "all" ? state.ui.periodBuilding : allBuildings()[0] || "");
+      const showSubPeriod = Boolean(draft.no || draft.periodValue || draft.periodPercent || draft.useSubPeriod);
+      const titleNo = showSubPeriod ? draft.no : draft.mainNo;
+      const buildingDatalist = `<datalist id="buildingList">${allBuildings().filter(Boolean).map((row) => `<option value="${esc(row)}">${esc(buildingLabel(row))}</option>`).join("")}</datalist>`;
       return `
         <div class="section period-editor">
           <div class="period-editor-head">
+            <button class="period-back-button" data-action="close-period-editor" title="กลับรายการงวด" aria-label="กลับรายการงวด">←</button>
             <div class="period-editor-title">
               <small>เพิ่มงวดใหม่</small>
-              <h2>${draft.no ? `งวดงานที่ ${esc(draft.no)}` : "กรอกข้อมูลงวด"}</h2>
+              <h2>${titleNo ? `งวดงานที่ ${esc(titleNo)}` : "กรอกข้อมูลงวดหลัก"}</h2>
             </div>
-            <div class="inline-list">
-              <button data-action="close-period-editor">กลับรายการงวด</button>
+            <div class="inline-list period-head-actions">
               <button class="primary" data-action="add-period">บันทึกงวด</button>
             </div>
           </div>
           <div class="panel">
             <div class="panel-head"><h2>ข้อมูลงวด</h2></div>
-            <div class="panel-body form-grid">
-              <label><span>อาคาร</span><select id="newPeriodBuilding">${allBuildings().map((row) => `<option value="${esc(row)}" ${building === row ? "selected" : ""}>หลัง ${esc(row)}</option>`).join("")}</select></label>
+            <div class="panel-body form-grid new-period-primary">
+              ${buildingDatalist}
+              <label><span>อาคาร</span><input id="newPeriodBuilding" list="buildingList" value="${esc(building)}" placeholder="เช่น G"></label>
               <label><span>งวดหลัก</span><input id="newPeriodMainNo" value="${esc(draft.mainNo || "")}" placeholder="เช่น 5"></label>
               <label><span>มูลค่างวดหลัก</span><input id="newPeriodMainValue" value="${esc(draft.mainValue || "")}" type="number" min="0" step="0.01"></label>
-              <label><span>งวดย่อย</span><input id="newPeriodNo" value="${esc(draft.no || "")}" placeholder="เช่น 5.1"></label>
-              <label><span>มูลค่างวดย่อย</span><input id="newPeriodValue" value="${esc(draft.periodValue || "")}" type="number" min="0" step="0.01"></label>
-              <label><span>% ของงวดหลัก</span><input id="newPeriodPercent" value="${esc(draft.periodPercent || "")}" type="number" min="0" step="0.01"></label>
               <label><span>สถานะ</span><select id="newPeriodStatus">${periodStatusOptions(draft.status || "รอทำ")}</select></label>
+              <details class="sub-period-disclosure" ${showSubPeriod ? "open" : ""}>
+                <summary>งวดงานย่อย</summary>
+                <div class="sub-period-fields">
+                  <label><span>งวดย่อย</span><input id="newPeriodNo" value="${esc(draft.no || "")}" placeholder="เช่น 5.1"></label>
+                  <label><span>มูลค่างวดย่อย</span><input id="newPeriodValue" value="${esc(draft.periodValue || "")}" type="number" min="0" step="0.01"></label>
+                  <label><span>% ของงวดหลัก</span><input id="newPeriodPercent" value="${esc(draft.periodPercent || "")}" type="number" min="0" step="0.01"></label>
+                </div>
+              </details>
               <label style="grid-column:1/-1"><span>รายละเอียด</span><textarea id="newPeriodDescription">${esc(draft.description || "")}</textarea></label>
             </div>
           </div>
@@ -4051,7 +4118,9 @@
       if (field === "mainNo") {
         period.mainNo = target.value.trim() || mainNoFromNo(period.no);
       } else if (field === "building") {
-        period.building = target.value;
+        period.building = target.value.trim();
+        if (period.building && !state.buildings.includes(period.building)) state.buildings.push(period.building);
+        if (state.buildings.some(Boolean)) state.buildings = state.buildings.filter(Boolean);
       } else if (field === "mainValue") {
         setPeriodMainValue(period, target.value);
         syncPeriodInputs(period);
@@ -4151,6 +4220,7 @@
         building: period.building,
         mainNo,
         mainValue: n(period.mainValue),
+        useSubPeriod: true,
         no: nextSubPeriodNo(period),
         periodValue: remaining || "",
         periodPercent: remaining && n(period.mainValue) ? Number((remaining / n(period.mainValue) * 100).toFixed(2)) : "",
@@ -4290,7 +4360,6 @@
         const key = target.dataset.periodFilter;
         if (key === "search") state.ui.periodSearch = target.value;
         if (key === "building") state.ui.periodBuilding = target.value;
-        if (key === "status") state.ui.periodStatus = target.value;
         saveState();
         return;
       }
@@ -4397,7 +4466,6 @@
         const key = target.dataset.periodFilter;
         if (key === "search") state.ui.periodSearch = target.value;
         if (key === "building") state.ui.periodBuilding = target.value;
-        if (key === "status") state.ui.periodStatus = target.value;
         saveState();
         return renderPeriods();
       }
@@ -4467,20 +4535,24 @@
     }
 
     function addPeriod() {
-      const building = $("#newPeriodBuilding").value;
-      const rawNo = $("#newPeriodNo").value.trim();
+      const building = $("#newPeriodBuilding").value.trim();
+      const rawNo = $("#newPeriodNo")?.value.trim() || "";
       const mainNo = ($("#newPeriodMainNo").value.trim() || mainNoFromNo(rawNo)).trim();
-      const no = rawNo || mainNo;
+      const hasSubInput = Boolean(rawNo || $("#newPeriodValue")?.value || $("#newPeriodPercent")?.value);
+      const no = hasSubInput ? (rawNo || mainNo) : mainNo;
       const existingMain = state.periods.find((period) => period.building === building && periodMainNo(period) === mainNo);
       let mainValue = n($("#newPeriodMainValue").value) || n(existingMain?.mainValue);
-      let periodValue = n($("#newPeriodValue").value);
-      let periodPercent = n($("#newPeriodPercent").value);
+      let periodValue = hasSubInput ? n($("#newPeriodValue")?.value) : mainValue;
+      let periodPercent = hasSubInput ? n($("#newPeriodPercent")?.value) : 100;
       if (!periodValue && periodPercent && mainValue) periodValue = mainValue * periodPercent / 100;
       if (!periodValue && !periodPercent && mainValue && no === mainNo) periodValue = mainValue;
       if (!periodPercent && periodValue && mainValue) periodPercent = periodValue / mainValue * 100;
       if (!mainValue) mainValue = periodValue;
       const title = $("#newPeriodTitle")?.value.trim() || `งวดงานที่ ${no}`;
+      if (!building) return showToast("กรอกชื่ออาคารก่อน");
       if (!no) return showToast("กรอกเลขงวดก่อน");
+      if (!state.buildings.includes(building)) state.buildings.push(building);
+      if (state.buildings.some(Boolean)) state.buildings = state.buildings.filter(Boolean);
       if (mainValue) {
         state.periods
           .filter((period) => period.building === building && periodMainNo(period) === mainNo)
