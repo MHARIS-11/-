@@ -434,7 +434,7 @@
       padding: 12px;
       background: var(--surface);
       display: grid;
-      gap: 8px;
+      gap: 10px;
     }
     .comparison-card header {
       display: flex;
@@ -442,9 +442,90 @@
       justify-content: space-between;
       gap: 8px;
     }
+    .comparison-card h3 {
+      font-size: 16px;
+    }
     .comparison-card strong {
       font-size: 20px;
       font-variant-numeric: tabular-nums;
+    }
+    .budget-readout {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .budget-readout strong {
+      font-size: 13px;
+    }
+    .labor-budget-wrap {
+      padding-top: 20px;
+      display: grid;
+      gap: 5px;
+    }
+    .labor-budget {
+      height: 28px;
+      border-radius: 999px;
+      position: relative;
+      overflow: visible;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+    }
+    .labor-budget-fill {
+      display: block;
+      height: 100%;
+      width: min(100%, calc(var(--used) * 1%));
+      border-radius: inherit;
+      background: var(--primary);
+    }
+    .labor-budget.warning .labor-budget-fill { background: var(--warning); }
+    .labor-budget.danger .labor-budget-fill { background: var(--actual); }
+    .labor-budget-percent {
+      position: absolute;
+      z-index: 3;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: inline-grid;
+      place-items: center;
+      min-width: 42px;
+      height: 20px;
+      padding-inline: 8px;
+      border-radius: 999px;
+      background: var(--primary);
+      color: white;
+      font-size: 12px;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      box-shadow: 0 0 0 2px oklch(1 0 0 / 0.72);
+    }
+    .labor-budget.warning .labor-budget-percent { background: oklch(0.5 0.13 70); }
+    .labor-budget.danger .labor-budget-percent { background: var(--danger); }
+    .labor-budget-control {
+      position: absolute;
+      z-index: 2;
+      left: min(100%, calc(var(--control) * 1%));
+      top: -12px;
+      bottom: -3px;
+      border-left: 2px dashed oklch(0.2 0.02 160);
+      pointer-events: none;
+    }
+    .labor-budget-control em {
+      position: absolute;
+      top: -17px;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font-style: normal;
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--ink);
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 1px 6px;
     }
     .budget-bar,
     .cost-stack {
@@ -490,10 +571,6 @@
     .period-overview td {
       white-space: nowrap;
     }
-    .period-overview td:nth-child(3) {
-      white-space: normal;
-      min-width: 220px;
-    }
     .status-dot {
       width: 9px;
       height: 9px;
@@ -507,6 +584,29 @@
     .plan-shell {
       display: grid;
       gap: 12px;
+    }
+    .claim-update {
+      margin-top: 4px;
+      color: var(--primary);
+      font-weight: 900;
+    }
+    .claim-history {
+      grid-column: 1 / -1;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 8px 10px;
+    }
+    .claim-history summary {
+      cursor: pointer;
+      font-weight: 900;
+      color: var(--primary);
+    }
+    .claim-history ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 12px;
     }
     .plan-toolbar {
       display: flex;
@@ -696,15 +796,27 @@
       width: auto;
       min-width: 156px;
     }
-    .work-table .date-btn.actual { background: var(--actual-soft); }
-    .work-table .date-btn .plan-line.has-plan {
+    .work-table .date-btn.actual { background: white; }
+    .work-table .cell-part.plan-part.has-plan-cell {
       background: oklch(0.88 0.08 235);
       color: oklch(0.24 0.07 235);
       font-weight: 800;
     }
-    .work-table .date-btn.actual .actual-line { background: var(--actual); color: white; }
+    .work-table .cell-part.actual-part.has-actual-cell {
+      background: var(--actual);
+      color: white;
+      font-weight: 800;
+    }
+    .work-table .cell-part.actual-part.has-actual-cell .cost-line {
+      color: white;
+      opacity: 0.92;
+    }
     .work-table .date-btn.readonly { cursor: default; }
     .work-table .date-btn.readonly:hover { outline: 0; }
+    .work-table .claim-date {
+      border-left: 2px dashed var(--primary) !important;
+      border-right: 2px dashed var(--primary) !important;
+    }
     .work-table .holiday, .work-table .holiday .date-btn {
       background: var(--holiday) !important;
     }
@@ -1391,6 +1503,27 @@
     </div>
   </dialog>
 
+  <dialog id="claimDialog">
+    <form method="dialog">
+      <div class="dialog-head">
+        <div>
+          <h2>เลื่อนวันที่เบิกงวด</h2>
+          <p class="muted" id="claimDialogMeta"></p>
+        </div>
+        <button class="ghost" value="cancel" aria-label="ปิด">ปิด</button>
+      </div>
+    </form>
+    <div class="dialog-body">
+      <label><span>วันที่เบิกงวดใหม่</span><input id="claimDateInput" inputmode="numeric" placeholder="วัน/เดือน/พ.ศ."></label>
+      <label><span>เหตุผลที่เลื่อน</span><textarea id="claimReasonInput" placeholder="เช่น งานล่าช้า รอวัสดุ รออนุมัติ"></textarea></label>
+      <div id="claimHistoryPreview" class="muted"></div>
+    </div>
+    <div class="dialog-actions">
+      <button class="ghost" value="cancel" onclick="document.getElementById('claimDialog').close()">ยกเลิก</button>
+      <button id="saveClaimBtn" class="primary">บันทึกวันเบิกงวด</button>
+    </div>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script>
@@ -1533,6 +1666,14 @@
       plan.startDate = plan.startDate || next.settings.startDate || "2026-05-26";
       plan.endDate = plan.endDate || next.settings.endDate || "2026-07-31";
       plan.updateDate = plan.updateDate || next.settings.updateDate || plan.startDate;
+      plan.claimDate = plan.claimDate || plan.endDate || plan.updateDate;
+      plan.claimDateHistory = Array.isArray(plan.claimDateHistory) ? plan.claimDateHistory.map((row) => ({
+        id: row.id || uid("ch"),
+        fromDate: row.fromDate || "",
+        toDate: row.toDate || "",
+        reason: row.reason || "",
+        changedAt: row.changedAt || isoToday()
+      })) : [];
       plan.periodIds = Array.isArray(plan.periodIds) ? plan.periodIds : [];
       plan.itemData = plan.itemData || {};
       Object.values(plan.itemData).forEach((data) => {
@@ -1627,6 +1768,8 @@
           startDate: next.settings.startDate || "2026-05-26",
           endDate: next.settings.endDate || "2026-07-31",
           updateDate: next.settings.updateDate || "2026-06-19",
+          claimDate: next.settings.endDate || "2026-07-31",
+          claimDateHistory: [],
           periodIds: next.periods.filter((period) => period.enabled !== false).map((period) => period.id),
           itemData: legacyItemData(next.periods),
           machineUsage: cloneMachineUsage(next.machineUsage),
@@ -1716,6 +1859,40 @@
 
     function planUpdateDate(plan = activeWorkPlan()) {
       return plan?.updateDate || state.settings.updateDate;
+    }
+
+    function planClaimDate(plan = activeWorkPlan()) {
+      return plan?.claimDate || planEndDate(plan);
+    }
+
+    function diffDaysFromToday(date) {
+      if (!date) return null;
+      const today = new Date();
+      const start = new Date(`${localISODate(today)}T00:00:00`);
+      const target = new Date(`${date}T00:00:00`);
+      if (Number.isNaN(target.getTime())) return null;
+      return Math.round((target - start) / 86400000);
+    }
+
+    function claimDaysText(date = planClaimDate()) {
+      const diff = diffDaysFromToday(date);
+      if (diff === null) return "";
+      if (diff > 0) return `เหลืออีก ${money(diff, 0)} วัน`;
+      if (diff < 0) return `เลยมาแล้ว ${money(Math.abs(diff), 0)} วัน`;
+      return "ถึงกำหนดวันนี้";
+    }
+
+    function claimUpdateText(plan = activeWorkPlan()) {
+      if (!plan) return "ยังไม่มีแผนเบิกงวด";
+      const claimDate = planClaimDate(plan);
+      return `${workPlanLabel(plan)} วันที่ ${thaiDateInput(claimDate) || dateLabel(claimDate)} ${claimDaysText(claimDate)}`.trim();
+    }
+
+    function dateClass(date) {
+      return [
+        isHoliday(date) ? "holiday" : "",
+        date === planClaimDate() ? "claim-date" : ""
+      ].filter(Boolean).join(" ");
     }
 
     function ensurePlanItemData(item, plan = activeWorkPlan()) {
@@ -2172,6 +2349,26 @@
       return (period?.items || []).reduce((sum, item) => sum + dates.reduce((inner, date) => inner + itemLaborCost(item, date), 0), 0);
     }
 
+    function periodLaborActualOnDate(period, date) {
+      return (period?.items || []).reduce((sum, item) => sum + itemLaborCost(item, date), 0);
+    }
+
+    function buildingLaborActualOnDate(building, date) {
+      return periodsForBuilding(building).reduce((sum, period) => sum + periodLaborActualOnDate(period, date), 0);
+    }
+
+    function periodMachineActual(period) {
+      if (!period?.building) return 0;
+      return getDates().filter((date) => date <= planUpdateDate()).reduce((sum, date) => {
+        const machine = totalMachineCost(period.building, date);
+        if (!machine) return sum;
+        const buildingLabor = buildingLaborActualOnDate(period.building, date);
+        const periodLabor = periodLaborActualOnDate(period, date);
+        if (!buildingLabor || !periodLabor) return sum;
+        return sum + machine * periodLabor / buildingLabor;
+      }, 0);
+    }
+
     function totalPeriodValue(view) {
       const groups = new Map();
       periodsForView(view).forEach((period) => {
@@ -2415,18 +2612,28 @@
       const comparison = viewOptions.map((view) => {
         const s = summaryFor(view);
         const label = viewLabel(view);
-        const ratio = Math.round(s.costRatio * 100);
-        const status = costStatus(s.costRatio);
+        const usedPct = s.laborValue ? s.total / s.laborValue * 100 : 0;
+        const controlPct = s.laborValue ? s.control / s.laborValue * 100 : n(state.settings.controlPercent);
+        const status = s.laborValue && s.total > s.laborValue ? "danger" : s.total > s.control ? "warning" : "normal";
         return `
           <div class="comparison-card">
             <header>
               <h3>${label}</h3>
-              <span class="pill ${status === "danger" ? "red" : status === "warning" ? "amber" : "green"}">${money(ratio, 0)}%</span>
             </header>
-            <div class="budget-bar ${status}" style="--pct:${Math.min(100, ratio)}"><span></span></div>
+            <div class="labor-budget-wrap">
+              <div class="labor-budget ${status}" style="--used:${Math.min(100, usedPct)};--control:${Math.min(100, controlPct)}">
+                <span class="labor-budget-fill"></span>
+                <span class="labor-budget-percent">${money(usedPct, 1)}%</span>
+                <span class="labor-budget-control"><em>งบควบคุม ${money(controlPct, 0)}%</em></span>
+              </div>
+              <div class="budget-readout">
+                <span>ใช้แล้ว</span>
+                <strong>${money(s.total, 0)} / ค่าแรงรวม 100% ${money(s.laborValue, 0)}</strong>
+              </div>
+            </div>
             <div class="metric-grid">
               <div><span>ค่าแรงจริง</span><strong>${money(s.laborActual, 0)}</strong></div>
-              <div><span>เครื่องจักร</span><strong>${money(s.machineActual, 0)}</strong></div>
+              <div><span>ค่าเครื่องจักร</span><strong>${money(s.machineActual, 0)}</strong></div>
               <div><span>งบควบคุม</span><strong>${money(s.control, 0)}</strong></div>
               <div><span>${s.balance < 0 ? "เกิน" : "คงเหลือ"}</span><strong>${money(Math.abs(s.balance), 0)}</strong></div>
             </div>
@@ -2442,20 +2649,21 @@
       const periodRows = periodsForView(mainView).map((period) => {
         const laborValue = periodLaborValue(period);
         const laborActual = periodLaborActual(period);
-        const ratio = laborValue ? laborActual / laborValue : 0;
-        const status = costStatus(ratio);
+        const machineActual = periodMachineActual(period);
+        const used = laborActual + machineActual;
+        const ratio = laborValue ? used / laborValue : 0;
+        const status = laborValue && used > laborValue ? "danger" : used > laborValue * n(state.settings.controlPercent) / 100 ? "warning" : "normal";
         return `
           <tr>
             <td><span class="status-dot ${status === "normal" ? "" : status}"></span>${esc(buildingLabel(period.building))}</td>
-            <td>งวด ${esc(periodMainNo(period))} / ${esc(period.no)}</td>
-            <td>${esc(period.title)}</td>
+            <td>งวดงานที่ ${esc(period.no)}</td>
             <td class="num">${money(period.periodValue, 0)}</td>
             <td class="num">${money(laborValue, 0)}</td>
-            <td class="num">${money(laborActual, 0)}</td>
+            <td class="num">${money(used, 0)}</td>
             <td class="num">${money(ratio * 100, 1)}%</td>
           </tr>
         `;
-      }).join("") || `<tr><td colspan="7" class="muted">ยังไม่ได้เลือกงวดงานสำหรับรอบนี้</td></tr>`;
+      }).join("") || `<tr><td colspan="6" class="muted">ยังไม่ได้เลือกงวดงานสำหรับรอบนี้</td></tr>`;
       const updateDates = getDates().filter((date) => date <= planUpdateDate());
       const topLabor = periodsForView(mainView).flatMap((period) => period.items.map((item) => {
         const amount = updateDates.reduce((sum, date) => sum + itemLaborCost(item, date), 0);
@@ -2487,12 +2695,12 @@
       const manualOptions = viewOptions.map((view) => `<option value="${esc(view)}" ${manualView === view ? "selected" : ""}>${esc(viewLabel(view))}</option>`).join("");
       el.innerHTML = `
         <div class="dashboard-shell">
-          ${renderWorkPlanPanel()}
           <div class="dashboard-hero">
             <div class="dashboard-hero-main">
               <div>
                 <h2>${esc(state.settings.projectName)} Cost Overview</h2>
                 <p class="muted">${esc(workPlanLabel())} · อัปเดต ${esc(dateLabel(planUpdateDate()))} · ช่วงแผน ${esc(dateLabel(planStartDate()))} ถึง ${esc(dateLabel(planEndDate()))}</p>
+                <p class="claim-update">${esc(claimUpdateText())}</p>
               </div>
               <span class="pill ${balanceClass || "green"}">${main.balance < 0 ? "เกินงบ" : "อยู่ในงบ"}</span>
             </div>
@@ -2547,7 +2755,7 @@
               </div>
               <div class="table-wrap">
                 <table class="period-overview">
-                  <thead><tr><th>อาคาร</th><th>งวด</th><th>ชื่อ</th><th class="num">มูลค่างวด</th><th class="num">ค่าแรงรวม</th><th class="num">ใช้แล้ว</th><th class="num">%</th></tr></thead>
+                  <thead><tr><th>อาคาร</th><th>งวดที่</th><th class="num">มูลค่างวด</th><th class="num">ค่าแรงรวม</th><th class="num">ใช้แล้ว</th><th class="num">%</th></tr></thead>
                   <tbody>${periodRows}</tbody>
                 </table>
               </div>
@@ -2566,9 +2774,6 @@
               <div class="panel-head"><h2>ตั้งค่าโครงการ</h2></div>
               <div class="panel-body form-grid">
                 <label><span>ชื่อโครงการ</span><input data-setting="projectName" value="${esc(state.settings.projectName)}"></label>
-                <label><span>วันเริ่มแผน</span><input type="date" data-work-plan-field="startDate" value="${esc(planStartDate())}"></label>
-                <label><span>วันจบแผน</span><input type="date" data-work-plan-field="endDate" value="${esc(planEndDate())}"></label>
-                <label><span>วันที่ Update</span><input type="date" data-work-plan-field="updateDate" value="${esc(planUpdateDate())}"></label>
                 <label><span>ชั่วโมงต่อวัน</span><input type="number" min="1" step="0.5" data-setting="dayHours" value="${esc(state.settings.dayHours)}"></label>
                 <label><span>ค่าแรงควบคุม (%)</span><input type="number" min="0" step="1" data-setting="controlPercent" value="${esc(state.settings.controlPercent)}"></label>
               </div>
@@ -2594,12 +2799,21 @@
     function renderWorkPlanPanel() {
       const plan = activeWorkPlan();
       const options = state.workPlans.map((row) => `<option value="${row.id}" ${row.id === plan?.id ? "selected" : ""}>${esc(workPlanLabel(row))} · ${esc(row.status || "กำลังทำ")}</option>`).join("");
+      const history = (plan?.claimDateHistory || []).slice().reverse();
+      const historyHtml = history.length ? `
+        <details class="claim-history">
+          <summary>ประวัติเลื่อนเบิกงวด ${history.length} ครั้ง</summary>
+          <ul>
+            ${history.map((row) => `<li>${esc(thaiDateInput(row.fromDate) || "-")} → ${esc(thaiDateInput(row.toDate) || "-")} · ${esc(row.reason || "ไม่ระบุเหตุผล")} · ${esc(dateLabel(row.changedAt))}</li>`).join("")}
+          </ul>
+        </details>
+      ` : "";
       return `
         <div class="panel work-plan-panel">
           <div class="panel-head">
             <div>
               <h2>แผนเบิกงวด</h2>
-              <p class="muted">เลือกงวดย่อยเข้าแผนนี้ แล้วกรอกแผน/งานจริงตามรอบเบิก</p>
+              <p class="muted">${esc(claimUpdateText(plan))}</p>
             </div>
             <span class="pill ${plan?.status === "เสร็จสิ้น" ? "green" : "amber"}">${esc(plan?.status || "กำลังทำ")}</span>
           </div>
@@ -2613,9 +2827,12 @@
             <label><span>วันเริ่มแผน</span><input inputmode="numeric" data-work-plan-date="startDate" value="${esc(thaiDateInput(planStartDate()))}" placeholder="วัน/เดือน/พ.ศ."></label>
             <label><span>วันจบแผน</span><input inputmode="numeric" data-work-plan-date="endDate" value="${esc(thaiDateInput(planEndDate()))}" placeholder="วัน/เดือน/พ.ศ."></label>
             <label><span>วันที่ Update</span><input inputmode="numeric" data-work-plan-date="updateDate" value="${esc(thaiDateInput(planUpdateDate()))}" placeholder="วัน/เดือน/พ.ศ."></label>
+            <label><span>วันที่เบิกงวด</span><input inputmode="numeric" data-work-plan-date="claimDate" value="${esc(thaiDateInput(planClaimDate()))}" placeholder="วัน/เดือน/พ.ศ."></label>
             <button class="primary" data-action="add-work-plan">เพิ่มแผนใหม่ว่าง</button>
+            <button data-action="open-claim-dialog">เลื่อนเบิกงวด</button>
             <button class="danger" data-action="delete-work-plan">ลบแผน</button>
             <button data-action="complete-work-plan">เสร็จสิ้นและเปิดแผนถัดไป</button>
+            ${historyHtml}
           </div>
         </div>
       `;
@@ -2759,9 +2976,9 @@
       } else {
         for (const building of buildingsForView(view)) {
           const periods = periodsForBuilding(building);
-          body += `<tr class="building-row"><td class="sticky col-building" colspan="4">อาคาร ${building}</td>${dates.map((date) => `<td class="date-cell ${isHoliday(date) ? "holiday" : ""}" data-date-col="${esc(date)}"></td>`).join("")}</tr>`;
+          body += `<tr class="building-row"><td class="sticky col-building" colspan="4">อาคาร ${building}</td>${dates.map((date) => `<td class="date-cell ${dateClass(date)}" data-date-col="${esc(date)}"></td>`).join("")}</tr>`;
           for (const period of periods) {
-            body += `<tr class="period-row"><td class="sticky col-building"></td><td class="sticky col-period">${esc(period.title)}</td><td class="sticky col-item" colspan="2">${esc(period.description)}</td>${dates.map((date) => `<td class="date-cell ${isHoliday(date) ? "holiday" : ""}" data-date-col="${esc(date)}"></td>`).join("")}</tr>`;
+            body += `<tr class="period-row"><td class="sticky col-building"></td><td class="sticky col-period">${esc(period.title)}</td><td class="sticky col-item" colspan="2">${esc(period.description)}</td>${dates.map((date) => `<td class="date-cell ${dateClass(date)}" data-date-col="${esc(date)}"></td>`).join("")}</tr>`;
             for (const item of period.items) {
               body += `
                 <tr>
@@ -2774,7 +2991,7 @@
                     const units = itemActualUnits(item, date);
                     const cost = itemLaborCost(item, date);
                     const workClass = units > 0 ? "actual" : "";
-                    const holidayClass = isHoliday(date) ? "holiday" : "";
+                    const dayClass = dateClass(date);
                     const planRef = { periodId: period.id, itemId: item.id, date, part: "plan" };
                     const actualRef = { periodId: period.id, itemId: item.id, date, part: "actual" };
                     const planSelected = editable && isCellSelected(planRef);
@@ -2783,13 +3000,13 @@
                     const planPrimary = editable && cellMatches(state.ui.selectedCell, planRef);
                     const actualPrimary = editable && cellMatches(state.ui.selectedCell, actualRef);
                     const attrs = editable ? `data-action="edit-cell" data-period-id="${period.id}" data-item-id="${item.id}" data-date="${date}" title="คลิกเพื่อเลือก ดับเบิลคลิกเพื่อแก้ไข"` : "";
-                    return `<td class="date-cell ${holidayClass}" data-date-col="${esc(date)}">
+                    return `<td class="date-cell ${dayClass}" data-date-col="${esc(date)}">
                       <button class="date-btn ${workClass} ${anySelected ? "selected" : ""} ${editable ? "" : "readonly"}" ${attrs} aria-selected="${anySelected ? "true" : "false"}">
-                        <span class="cell-part plan-part ${planSelected ? "part-selected" : ""} ${planPrimary ? "part-primary" : ""}" data-cell-part="plan" title="จำนวนแรงตามแผน">
-                          <span class="plan-line ${planned ? "has-plan" : ""}">${planned ? qty(planned) : ""}</span>
+                        <span class="cell-part plan-part ${planned ? "has-plan-cell" : ""} ${planSelected ? "part-selected" : ""} ${planPrimary ? "part-primary" : ""}" data-cell-part="plan" title="จำนวนแรงตามแผน">
+                          <span class="plan-line">${planned ? qty(planned) : ""}</span>
                           ${editable ? `<span class="fill-handle" data-action="fill-handle" aria-hidden="true"></span>` : ""}
                         </span>
-                        <span class="cell-part actual-part ${actualSelected ? "part-selected" : ""} ${actualPrimary ? "part-primary" : ""}" data-cell-part="actual" title="จำนวนแรงจริง + ค่าแรง">
+                        <span class="cell-part actual-part ${units ? "has-actual-cell" : ""} ${actualSelected ? "part-selected" : ""} ${actualPrimary ? "part-primary" : ""}" data-cell-part="actual" title="จำนวนแรงจริง + ค่าแรง">
                           <span class="actual-line">${units ? qty(units) : ""}</span>
                           <span class="cost-line">${cost ? money(cost, 0) : ""}</span>
                           ${editable ? `<span class="fill-handle" data-action="fill-handle" aria-hidden="true"></span>` : ""}
@@ -2812,7 +3029,7 @@
       ].map(([label, getter, digits]) => `
         <tr class="summary-row">
           <td class="sticky col-building" colspan="4">${label}</td>
-          ${dates.map((date) => `<td class="date-cell ${isHoliday(date) ? "holiday" : ""}" data-date-col="${esc(date)}">${getter(date) ? (digits === "qty" ? qty(getter(date)) : money(getter(date), digits)) : "0"}</td>`).join("")}
+          ${dates.map((date) => `<td class="date-cell ${dateClass(date)}" data-date-col="${esc(date)}">${getter(date) ? (digits === "qty" ? qty(getter(date)) : money(getter(date), digits)) : "0"}</td>`).join("")}
         </tr>
       `).join("") : "";
       return `
@@ -2830,7 +3047,7 @@
               <th class="sticky col-period"></th>
               <th class="sticky col-item"></th>
               <th class="sticky col-value"></th>
-              ${dates.map((date) => `<th class="day-cell date-cell ${isHoliday(date) ? "holiday" : ""}" data-date-col="${esc(date)}">${dayNumber(date)}</th>`).join("")}
+              ${dates.map((date) => `<th class="day-cell date-cell ${dateClass(date)}" data-date-col="${esc(date)}">${dayNumber(date)}</th>`).join("")}
             </tr>
           </thead>
           <tbody>${body}${summaryRows}</tbody>
@@ -4504,6 +4721,7 @@
       if (action === "redo") return redo();
       if (action === "go-today") return goToToday();
       if (action === "add-work-plan") return addWorkPlan();
+      if (action === "open-claim-dialog") return openClaimDialog();
       if (action === "delete-work-plan") return deleteWorkPlan();
       if (action === "complete-work-plan") return completeWorkPlan();
       if (action === "edit-cell") {
@@ -4890,6 +5108,8 @@
         startDate: planStartDate(),
         endDate: planEndDate(),
         updateDate: planUpdateDate(),
+        claimDate: planClaimDate() || planEndDate(),
+        claimDateHistory: [],
         periodIds: [],
         itemData: {},
         machineUsage: {},
@@ -4908,6 +5128,38 @@
       saveState();
       renderAll();
       showToast(`เพิ่ม${workPlanLabel(plan)}แล้ว`);
+    }
+
+    function openClaimDialog() {
+      const plan = activeWorkPlan();
+      if (!plan) return;
+      $("#claimDialogMeta").textContent = claimUpdateText(plan);
+      $("#claimDateInput").value = thaiDateInput(planClaimDate(plan));
+      $("#claimReasonInput").value = "";
+      const latest = (plan.claimDateHistory || []).at(-1);
+      $("#claimHistoryPreview").textContent = latest ? `ล่าสุด: ${thaiDateInput(latest.fromDate)} → ${thaiDateInput(latest.toDate)} (${latest.reason || "ไม่ระบุเหตุผล"})` : "ยังไม่มีประวัติการเลื่อน";
+      $("#claimDialog").showModal();
+      $("#claimDateInput").focus();
+    }
+
+    function saveClaimDateChange(event) {
+      event?.preventDefault?.();
+      const plan = activeWorkPlan();
+      if (!plan) return;
+      const nextDate = parseThaiDateInput($("#claimDateInput").value);
+      if (!nextDate) return showToast("กรอกวันที่รูปแบบ วัน/เดือน/พ.ศ.");
+      const reason = $("#claimReasonInput").value.trim();
+      if (!reason) return showToast("กรอกเหตุผลที่เลื่อนเบิกงวดก่อน");
+      const fromDate = planClaimDate(plan);
+      if (nextDate === fromDate) return showToast("วันที่เบิกงวดยังเหมือนเดิม");
+      recordHistory("เลื่อนวันที่เบิกงวด");
+      plan.claimDate = nextDate;
+      plan.claimDateHistory = Array.isArray(plan.claimDateHistory) ? plan.claimDateHistory : [];
+      plan.claimDateHistory.push({ id: uid("ch"), fromDate, toDate: nextDate, reason, changedAt: isoToday() });
+      saveState();
+      $("#claimDialog").close();
+      renderAll();
+      showToast("บันทึกวันเบิกงวดใหม่แล้ว");
     }
 
     function deleteWorkPlan() {
@@ -5672,6 +5924,20 @@
       const titleView = reportViewTitle(view);
       ctx.fillStyle = "#111";
       ctx.fillText(`แผนงานประจำงวดโครงการ ${state.settings.projectName} ${titleView}`, x0 + tableW / 2, y + 22 * scale);
+      const claimDate = planClaimDate();
+      if (claimDate) {
+        const boxW = 154 * scale;
+        const boxH = 46 * scale;
+        const boxX = x0 + tableW - boxW - 12 * scale;
+        const boxY = y + 12 * scale;
+        ctx.strokeStyle = "#111";
+        ctx.strokeRect(boxX, boxY, boxW, boxH);
+        ctx.font = `bold ${10 * scale}px Tahoma, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillText(workPlanLabel(), boxX + boxW / 2, boxY + 15 * scale);
+        ctx.font = `${10 * scale}px Tahoma, sans-serif`;
+        ctx.fillText(thaiDateInput(claimDate), boxX + boxW / 2, boxY + 32 * scale);
+      }
       ctx.font = `${12 * scale}px Tahoma, sans-serif`;
       ctx.textAlign = "left";
       const detailY = y + 54 * scale;
@@ -5683,6 +5949,7 @@
         desc.forEach((line, i) => fitText(ctx, line, gx + 18 * scale, detailY + (18 + i * 16) * scale, tableW / groups.length - 24 * scale));
       });
       y += topH - rowH * 2;
+      const scheduleTopY = y;
 
       drawCell(ctx, x0, y, seqW, rowH * 2, "ลำดับ", true);
       drawCell(ctx, x0 + seqW, y, itemW, rowH * 2, "รายการ", true);
@@ -5767,6 +6034,20 @@
         });
       }
 
+      const claimIndex = dates.indexOf(claimDate);
+      if (claimIndex >= 0) {
+        const claimX = x0 + leftW + claimIndex * dateW + dateW / 2;
+        ctx.save();
+        ctx.setLineDash([6 * scale, 5 * scale]);
+        ctx.strokeStyle = "#111";
+        ctx.lineWidth = 2 * scale;
+        ctx.beginPath();
+        ctx.moveTo(claimX, scheduleTopY - 10 * scale);
+        ctx.lineTo(claimX, y + rowH * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
       y += rowH;
       const s = summaryFor(view);
       const summaryW = 580 * scale;
@@ -5841,6 +6122,7 @@
     document.addEventListener("keydown", handleKeyDown);
     $("#saveCellBtn").addEventListener("click", saveCellDraft);
     $("#clearCellBtn").addEventListener("click", clearCellDraft);
+    $("#saveClaimBtn").addEventListener("click", saveClaimDateChange);
 
     renderAll();
   </script>
