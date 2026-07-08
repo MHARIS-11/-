@@ -1385,7 +1385,7 @@
       box-shadow: 0 18px 60px oklch(0.14 0.02 160 / 0.24);
     }
     dialog::backdrop {
-      background: oklch(0.18 0.018 160 / 0.34);
+      background: oklch(0.14 0.018 160 / 0.62);
     }
     .dialog-head {
       padding: 14px 16px;
@@ -1409,6 +1409,132 @@
       justify-content: flex-end;
       gap: 8px;
       flex-wrap: wrap;
+    }
+    .split-dialog {
+      width: min(680px, calc(100vw - 24px));
+      max-width: min(680px, calc(100vw - 24px));
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .split-dialog .dialog-head {
+      align-items: flex-start;
+      background: var(--surface);
+    }
+    .split-dialog .dialog-body {
+      gap: 12px;
+      background: var(--bg);
+    }
+    .split-source-strip {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: oklch(0.98 0.006 160);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .split-source-strip span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .split-source-strip strong {
+      display: block;
+      margin-top: 2px;
+      color: var(--ink);
+      font-size: 18px;
+      line-height: 1.2;
+    }
+    .split-field-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(120px, 0.55fr) minmax(180px, 0.9fr);
+      gap: 10px;
+    }
+    .split-mode-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .split-mode {
+      min-height: 48px;
+      text-align: left;
+      justify-content: flex-start;
+      display: grid;
+      gap: 2px;
+    }
+    .split-mode small {
+      display: block;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .split-mode.active {
+      border-color: var(--brand);
+      background: oklch(0.93 0.05 160);
+      color: var(--brand);
+    }
+    .split-preview {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .split-preview-row {
+      display: grid;
+      grid-template-columns: minmax(100px, 0.8fr) minmax(0, 1fr) minmax(120px, 0.7fr);
+      gap: 10px;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .split-preview-row:last-child {
+      border-bottom: 0;
+    }
+    .split-preview-row strong {
+      color: var(--ink);
+    }
+    .split-preview-row .num {
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--brand);
+    }
+    .split-inline-note {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .split-warning {
+      border: 1px solid oklch(0.78 0.12 28);
+      background: oklch(0.97 0.035 28);
+      color: var(--danger);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-weight: 800;
+    }
+    @media (max-width: 720px) {
+      .split-source-strip,
+      .split-field-grid,
+      .split-mode-grid,
+      .split-preview-row {
+        grid-template-columns: 1fr;
+      }
+      .split-dialog .dialog-actions {
+        justify-content: stretch;
+      }
+      .split-dialog .dialog-actions button {
+        flex: 1 1 160px;
+      }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .split-dialog[open] {
+        animation: split-dialog-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      @keyframes split-dialog-in {
+        from { opacity: 0; transform: translateY(8px) scale(0.985); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
     }
     .notice {
       border: 1px solid oklch(0.82 0.13 82);
@@ -1603,6 +1729,21 @@
     </div>
   </dialog>
 
+  <dialog id="splitDialog" class="split-dialog" aria-labelledby="splitDialogTitle">
+    <div class="dialog-head">
+      <div>
+        <h2 id="splitDialogTitle">ซอยงวดงาน</h2>
+        <p class="muted" id="splitDialogMeta"></p>
+      </div>
+      <button type="button" class="ghost" data-action="close-split-dialog" aria-label="ปิด">ปิด</button>
+    </div>
+    <div class="dialog-body" id="splitDialogBody"></div>
+    <div class="dialog-actions">
+      <button type="button" class="ghost" data-action="close-split-dialog">ยกเลิก</button>
+      <button type="button" id="saveSplitBtn" class="primary" data-action="save-split-dialog">ซอยงวดงาน</button>
+    </div>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script>
@@ -1641,6 +1782,7 @@
     let activeTab = "dashboard";
     let state = null;
     let cellDraft = null;
+    let splitDraft = null;
     let fillDrag = null;
     let selectDrag = null;
     let undoStack = [];
@@ -2234,6 +2376,12 @@
         .sort((a, b) => naturalSort(a.no, b.no));
     }
 
+    function mainGroupByKey(building, mainNo) {
+      return state.periods
+        .filter((row) => row.building === building && periodMainNo(row) === mainNo)
+        .sort((a, b) => naturalSort(a.no, b.no));
+    }
+
     function periodMainViewRows(key = state.ui.editingMainPeriodKey || "") {
       const [building, mainNo] = String(key).split("|");
       if (!building || !mainNo) return [];
@@ -2262,10 +2410,61 @@
       const mainNo = periodMainNo(period);
       const used = fullMainGroup(period)
         .map((row) => String(row.no || ""))
-        .filter((no) => no.startsWith(`${mainNo}.`))
+        .filter((no) => new RegExp(`^${mainNo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.\\d+$`).test(no))
         .map((no) => Number(no.slice(mainNo.length + 1)))
         .filter((num) => Number.isFinite(num));
       return `${mainNo}.${(used.length ? Math.max(...used) : 0) + 1}`;
+    }
+
+    function nextChildPeriodNo(period) {
+      const parentNo = String(period?.no || "").trim();
+      if (!parentNo) return nextSubPeriodNo(period);
+      const used = fullMainGroup(period)
+        .map((row) => String(row.no || ""))
+        .filter((no) => new RegExp(`^${parentNo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.\\d+$`).test(no))
+        .map((no) => Number(no.slice(parentNo.length + 1)))
+        .filter((num) => Number.isFinite(num));
+      return `${parentNo}.${(used.length ? Math.max(...used) : 0) + 1}`;
+    }
+
+    function periodNoDepth(period) {
+      return Math.max(0, String(period?.no || "").split(".").length - 1);
+    }
+
+    function parseMoneyOrPercentInput(raw, baseValue) {
+      const text = String(raw || "").replace(/,/g, "").trim();
+      if (!text) return 0;
+      if (text.endsWith("%")) return n(baseValue) * n(text.slice(0, -1)) / 100;
+      return n(text);
+    }
+
+    function parseSplitNumber(raw) {
+      const value = Number(String(raw ?? "").replace(/,/g, "").replace(/%/g, "").trim() || 0);
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    function formatSplitInput(value, digits = 0) {
+      const number = Number(value || 0);
+      if (!Number.isFinite(number) || number === 0) return "";
+      return number.toLocaleString("th-TH", {
+        maximumFractionDigits: Number.isInteger(number) ? 0 : digits,
+        minimumFractionDigits: 0
+      });
+    }
+
+    function splitAmountValue(mainValue) {
+      const value = parseSplitNumber(splitDraft?.amountValue);
+      if (value > 0) return value;
+      return n(mainValue) * parseSplitNumber(splitDraft?.amountPercent) / 100;
+    }
+
+    function addPeriodValueHistory(period, field, fromValue, toValue, reason) {
+      const from = n(fromValue);
+      const to = n(toValue);
+      if (!period || Math.abs(from - to) < 0.0001) return;
+      period.valueHistory = Array.isArray(period.valueHistory) ? period.valueHistory : [];
+      period.valueHistory.push({ id: uid("vh"), field, from, to, reason, changedAt: isoToday() });
+      if (period.valueHistory.length > 80) period.valueHistory = period.valueHistory.slice(-80);
     }
 
     function periodsForBuilding(building, activeOnly = true) {
@@ -2376,23 +2575,53 @@
     function setPeriodMainValue(period, value) {
       const mainNo = periodMainNo(period);
       const amount = n(value);
-      state.periods
-        .filter((row) => row.building === period.building && periodMainNo(row) === mainNo)
-        .forEach((row) => {
-          row.mainNo = mainNo;
-          row.mainValue = amount;
-          updatePeriodPercent(row);
-        });
+      const rows = fullMainGroup(period);
+      const singleMain = rows.length === 1 && !hasSubPeriods(rows);
+      const subTotal = rows.reduce((sum, row) => sum + (row.id === period.id && singleMain ? amount : n(row.periodValue)), 0);
+      if (!singleMain && amount > 0 && Math.abs(subTotal - amount) > 0.01) {
+        const ok = confirm(`มูลค่างวดหลัก ${money(amount, 0)} ไม่เท่ารวมงวดย่อย ${money(subTotal, 0)} ต้องการบันทึกไว้ก่อนหรือไม่?`);
+        if (!ok) return false;
+      }
+      rows.forEach((row) => {
+        row.mainNo = mainNo;
+        addPeriodValueHistory(row, "mainValue", row.mainValue, amount, "แก้มูลค่างวดหลัก");
+        row.mainValue = amount;
+        if (singleMain) {
+          addPeriodValueHistory(row, "periodValue", row.periodValue, amount, "แก้มูลค่างวดเดี่ยว");
+          row.periodValue = amount;
+        }
+        updatePeriodPercent(row);
+      });
+      return true;
     }
 
     function setPeriodValue(period, value) {
-      period.periodValue = n(value);
+      const amount = n(value);
+      const rows = fullMainGroup(period);
+      const singleMain = rows.length === 1 && !hasSubPeriods(rows);
+      const previous = n(period.periodValue);
+      if (!singleMain) {
+        const nextTotal = rows.reduce((sum, row) => sum + (row.id === period.id ? amount : n(row.periodValue)), 0);
+        if (n(period.mainValue) && nextTotal > n(period.mainValue) + 0.01) {
+          showToast(`รวมงวดย่อย ${money(nextTotal, 0)} เกินมูลค่างวดหลัก ${money(period.mainValue, 0)}`);
+          return false;
+        }
+      }
+      addPeriodValueHistory(period, "periodValue", previous, amount, "แก้มูลค่างวด");
+      period.periodValue = amount;
+      if (singleMain) {
+        addPeriodValueHistory(period, "mainValue", period.mainValue, amount, "แก้มูลค่างวดเดี่ยว");
+        period.mainValue = amount;
+      }
       updatePeriodPercent(period);
+      return true;
     }
 
     function setPeriodPercent(period, value) {
+      const amount = n(period.mainValue) * n(value) / 100;
+      if (setPeriodValue(period, amount) === false) return false;
       period.periodPercent = n(value);
-      period.periodValue = n(period.mainValue) * n(value) / 100;
+      return true;
     }
 
     function mainPeriodSummaries(building) {
@@ -3284,6 +3513,7 @@
       const laborValue = periodLaborValue(period);
       const statusClass = periodStatusClass(period.status);
       const subPercent = n(period.mainValue) ? n(period.periodValue) / n(period.mainValue) * 100 : 0;
+      const indent = Math.min(48, Math.max(0, periodNoDepth(period) - 1) * 18);
       return `
         <tr class="period-sub-row ${periodEnabled(period) ? "is-selected" : "is-disabled"}" data-period-row="${period.id}">
           <td>
@@ -3291,7 +3521,7 @@
               <input type="checkbox" data-period-enabled="${period.id}" ${periodEnabled(period) ? "checked" : ""}>
             </label>
           </td>
-          <td class="period-indent"><span class="period-no">${esc(period.no)}</span></td>
+          <td class="period-indent" style="padding-left:${indent}px"><span class="period-no">${esc(period.no)}</span></td>
           <td>
             <strong>${esc(periodDisplayTitle(period))}</strong>
             <span class="period-mini-note"> · ${money(subPercent, 1)}% ของงวดหลัก</span>
@@ -3318,6 +3548,7 @@
             </div>
             <div class="inline-list period-head-actions">
               <button class="danger" data-action="delete-main-period" data-period-main-key="${esc(first.building)}|${esc(periodMainNo(first))}">ลบงวด</button>
+              <button data-action="merge-period-group" data-period-main-key="${esc(first.building)}|${esc(periodMainNo(first))}">รวมกลับเป็นงวดหลัก</button>
               <button class="primary" data-action="split-period" data-period-id="${first.id}">ซอยงวดงาน</button>
             </div>
           </div>
@@ -3347,7 +3578,7 @@
                   </tr>
                   ${rows.map((period) => `
                     <tr class="period-overview-row" data-period-row="${period.id}">
-                      <td><span class="period-no">${esc(period.no)}</span></td>
+                      <td style="padding-left:${Math.min(48, Math.max(0, periodNoDepth(period) - 1) * 18)}px"><span class="period-no">${esc(period.no)}</span></td>
                       <td class="num">${money(period.periodValue, 0)}</td>
                       <td class="num">${money(periodLaborValue(period), 0)}</td>
                       <td class="num">${money(n(period.mainValue) ? n(period.periodValue) / n(period.mainValue) * 100 : n(period.periodPercent), 1)}%</td>
@@ -3367,7 +3598,9 @@
       const subPercent = n(period.mainValue) ? n(period.periodValue) / n(period.mainValue) * 100 : 0;
       const laborRatio = n(period.periodValue) ? laborValue / n(period.periodValue) * 100 : 0;
       const group = fullMainGroup(period);
-      const canSplit = !hasSubPeriods(group);
+      const hasSubs = hasSubPeriods(group);
+      const isSingleMain = !hasSubs;
+      const valueLabel = isSingleMain ? "มูลค่างวด" : "มูลค่างวดย่อย";
       const buildingDatalist = `<datalist id="buildingList">${allBuildings().filter(Boolean).map((row) => `<option value="${esc(row)}">${esc(buildingLabel(row))}</option>`).join("")}</datalist>`;
       return `
         <div class="section period-editor">
@@ -3381,12 +3614,13 @@
             <div class="inline-list period-head-actions">
               <label class="check-row"><input type="checkbox" data-period-enabled="${period.id}" ${periodEnabled(period) ? "checked" : ""}> เลือกใช้รอบนี้</label>
               <button class="danger" data-action="delete-period" data-period-id="${period.id}">ลบงวด</button>
-              ${canSplit ? `<button class="primary" data-action="split-period" data-period-id="${period.id}">ซอยงวดงาน</button>` : ""}
+              ${hasSubs ? `<button data-action="merge-period-group" data-period-main-key="${esc(period.building)}|${esc(periodMainNo(period))}">รวมกลับเป็นงวดหลัก</button>` : ""}
+              <button class="primary" data-action="split-period" data-period-id="${period.id}">ซอยจากงวดนี้</button>
             </div>
           </div>
           <div class="period-dense-summary">
             <div class="metric"><span>มูลค่างวดหลัก</span><strong>${money(period.mainValue, 0)}</strong></div>
-            <div class="metric"><span>มูลค่างวดย่อย</span><strong>${money(period.periodValue, 0)}</strong></div>
+            <div class="metric"><span>${valueLabel}</span><strong>${money(period.periodValue, 0)}</strong></div>
             <div class="metric"><span>% ของงวดหลัก</span><strong>${money(subPercent, 1)}%</strong></div>
             <div class="metric"><span>ค่าแรงงวด</span><strong>${money(laborValue, 0)}</strong></div>
             <div class="metric"><span>ค่าแรงเทียบงวดย่อย</span><strong>${money(laborRatio, 1)}%</strong></div>
@@ -3404,7 +3638,7 @@
                     <tr><td>งวดหลัก</td><td><input data-period-field="mainNo" data-period-id="${period.id}" value="${esc(periodMainNo(period))}"></td></tr>
                     <tr><td>งวดย่อย</td><td><input data-period-field="no" data-period-id="${period.id}" value="${esc(period.no)}"></td></tr>
                     <tr><td>มูลค่างวดหลัก</td><td><input type="number" step="0.01" data-period-field="mainValue" data-period-id="${period.id}" value="${esc(period.mainValue)}"></td></tr>
-                    <tr><td>มูลค่างวดย่อย</td><td><input type="number" step="0.01" data-period-field="periodValue" data-period-id="${period.id}" value="${esc(period.periodValue)}"></td></tr>
+                    <tr><td>${valueLabel}</td><td><input type="number" step="0.01" data-period-field="periodValue" data-period-id="${period.id}" value="${esc(period.periodValue)}"></td></tr>
                     <tr><td>%</td><td><input class="num" type="number" step="0.01" data-period-field="periodPercent" data-period-id="${period.id}" value="${esc(money(subPercent, 2).replace(/,/g, ""))}"></td></tr>
                     <tr><td>สถานะ</td><td><select data-period-field="status" data-period-id="${period.id}">${periodStatusOptions(period.status)}</select></td></tr>
                     <tr><td>รายละเอียด</td><td><textarea data-period-field="description" data-period-id="${period.id}">${esc(period.description)}</textarea></td></tr>
@@ -4654,6 +4888,7 @@
       const period = getPeriod(target.dataset.periodId);
       if (!period) return false;
       const field = target.dataset.periodField;
+      let updated = true;
       if (field === "mainNo") {
         period.mainNo = target.value.trim() || mainNoFromNo(period.no);
       } else if (field === "building") {
@@ -4661,13 +4896,13 @@
         if (period.building && !state.buildings.includes(period.building)) state.buildings.push(period.building);
         if (state.buildings.some(Boolean)) state.buildings = state.buildings.filter(Boolean);
       } else if (field === "mainValue") {
-        setPeriodMainValue(period, target.value);
+        updated = setPeriodMainValue(period, target.value);
         syncPeriodInputs(period);
       } else if (field === "periodValue") {
-        setPeriodValue(period, target.value);
+        updated = setPeriodValue(period, target.value);
         syncPeriodInputs(period);
       } else if (field === "periodPercent") {
-        setPeriodPercent(period, target.value);
+        updated = setPeriodPercent(period, target.value);
         syncPeriodInputs(period);
       } else if (field === "no") {
         const previousMainFromNo = mainNoFromNo(period.no);
@@ -4676,6 +4911,10 @@
         period.title = periodDisplayTitle(period);
       } else {
         period[field] = target.value;
+      }
+      if (updated === false) {
+        syncPeriodInputs(period);
+        return false;
       }
       saveState();
       renderNav();
@@ -4741,38 +4980,338 @@
       setTimeout(reset, 40);
     }
 
-    function splitPeriod(id) {
+    function splitDialogContext() {
+      if (!splitDraft?.periodId) return null;
+      const period = getPeriod(splitDraft.periodId);
+      if (!period) return null;
+      const rows = fullMainGroup(period);
+      const mainNo = periodMainNo(period);
+      const mainValue = n(period.mainValue) || n(period.periodValue);
+      const firstSplit = rows.length === 1 && String(period.no) === mainNo;
+      return { period, rows, mainNo, mainValue, firstSplit };
+    }
+
+    function splitModeDefaultNo(period, mode) {
+      if (mode === "child") return nextChildPeriodNo(period);
+      return nextSubPeriodNo(period);
+    }
+
+    function splitDialogData() {
+      const ctx = splitDialogContext();
+      if (!ctx) return { ok: false, message: "ไม่พบงวดงานที่ต้องการซอย" };
+      const { period, mainNo, mainValue, firstSplit } = ctx;
+      if (!mainValue) return { ok: false, message: "กรอกมูลค่างวดหลักก่อนซอยงวด" };
+      const amount = splitAmountValue(mainValue);
+      if (firstSplit) {
+        const firstNo = `${mainNo}.1`;
+        const secondNo = `${mainNo}.2`;
+        if (!(amount > 0) || amount >= mainValue) return { ok: false, ctx, message: "มูลค่างวดแรกต้องมากกว่า 0 และน้อยกว่ามูลค่างวดหลัก" };
+        const duplicate = state.periods.some((row) => row.id !== period.id && row.building === period.building && [firstNo, secondNo].includes(String(row.no)));
+        if (duplicate) return { ok: false, ctx, message: `มีงวด ${firstNo} หรือ ${secondNo} อยู่แล้ว` };
+        return {
+          ok: true,
+          ctx,
+          firstNo,
+          secondNo,
+          firstValue: amount,
+          secondValue: mainValue - amount,
+          sourceAfter: amount,
+          newNo: secondNo,
+          newValue: mainValue - amount
+        };
+      }
+      const sourceValue = n(period.periodValue);
+      const cleanNo = String(splitDraft.newNo || "").trim();
+      if (!(amount > 0) || amount >= sourceValue) return { ok: false, ctx, message: "มูลค่าที่ซอยออกต้องมากกว่า 0 และน้อยกว่ามูลค่างวดต้นทาง" };
+      if (!cleanNo) return { ok: false, ctx, message: "กรอกเลขงวดใหม่ก่อน" };
+      if (state.periods.some((row) => row.building === period.building && String(row.no) === cleanNo)) return { ok: false, ctx, message: `มีงวด ${cleanNo} อยู่แล้ว` };
+      return {
+        ok: true,
+        ctx,
+        sourceAfter: sourceValue - amount,
+        newNo: cleanNo,
+        newValue: amount
+      };
+    }
+
+    function splitDialogPreviewHtml() {
+      const result = splitDialogData();
+      const ctx = result.ctx || splitDialogContext();
+      if (!ctx) return `<div class="split-warning">${esc(result.message || "ไม่พบงวดงานที่ต้องการซอย")}</div>`;
+      const { period, mainNo, mainValue, firstSplit } = ctx;
+      const currentValue = firstSplit ? mainValue : n(period.periodValue);
+      const intro = firstSplit
+        ? `ข้อมูลเดิมจะอยู่ที่งวด ${mainNo}.1 และระบบจะสร้าง ${mainNo}.2 เป็นงวดว่าง`
+        : `ข้อมูลเดิมยังอยู่ที่งวด ${period.no} และงวดใหม่จะเริ่มว่าง`;
+      if (!result.ok) {
+        return `
+          <div class="split-preview">
+            <div class="split-preview-row">
+              <strong>${esc(periodDisplayTitle(period))}</strong>
+              <span>${esc(intro)}</span>
+              <span class="num">${money(currentValue, 0)}</span>
+            </div>
+          </div>
+          <div class="split-warning">${esc(result.message)}</div>
+        `;
+      }
+      if (firstSplit) {
+        return `
+          <div class="split-preview">
+            <div class="split-preview-row">
+              <strong>งวด ${esc(result.firstNo)}</strong>
+              <span>เก็บรายการงานและข้อมูลรายวันเดิมไว้ทั้งหมด</span>
+              <span class="num">${money(result.firstValue, 0)}</span>
+            </div>
+            <div class="split-preview-row">
+              <strong>งวด ${esc(result.secondNo)}</strong>
+              <span>สร้างเป็นงวดใหม่ ยังไม่มีรายการงานหรือข้อมูลรายวัน</span>
+              <span class="num">${money(result.secondValue, 0)}</span>
+            </div>
+          </div>
+        `;
+      }
+      return `
+        <div class="split-preview">
+          <div class="split-preview-row">
+            <strong>งวด ${esc(period.no)}</strong>
+            <span>มูลค่างวดต้นทางหลังซอย</span>
+            <span class="num">${money(result.sourceAfter, 0)}</span>
+          </div>
+          <div class="split-preview-row">
+            <strong>งวด ${esc(result.newNo)}</strong>
+            <span>งวดใหม่ ยังไม่มีรายการงานหรือข้อมูลรายวัน</span>
+            <span class="num">${money(result.newValue, 0)}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSplitPreview() {
+      const preview = $("#splitPreview");
+      if (preview) preview.innerHTML = splitDialogPreviewHtml();
+    }
+
+    function renderSplitDialog() {
+      const ctx = splitDialogContext();
+      if (!ctx) return;
+      const { period, mainNo, mainValue, firstSplit } = ctx;
+      const sourceValue = firstSplit ? mainValue : n(period.periodValue);
+      const sourcePct = mainValue ? sourceValue / mainValue * 100 : 0;
+      const amountValue = splitDraft.amountValue || "";
+      const amountPercent = splitDraft.amountPercent || "";
+      const newNo = firstSplit ? `${mainNo}.1` : (splitDraft.newNo || splitModeDefaultNo(period, splitDraft.mode));
+      $("#splitDialogMeta").textContent = `${buildingLabel(period.building)} · งวด ${period.no}`;
+      $("#splitDialogBody").innerHTML = `
+        <div class="split-source-strip">
+          <div><span>งวดต้นทาง</span><strong>${esc(periodDisplayTitle(period))}</strong></div>
+          <div><span>มูลค่าต้นทาง</span><strong>${money(sourceValue, 0)}</strong></div>
+          <div><span>เทียบงวดหลัก</span><strong>${money(sourcePct, 1)}%</strong></div>
+        </div>
+        <div class="split-field-grid">
+          <label>
+            <span>มูลค่าที่จะซอยออก</span>
+            <input id="splitValueInput" data-split-field="amountValue" value="${esc(amountValue)}" placeholder="เช่น 600000" inputmode="decimal">
+          </label>
+          <label>
+            <span>เปอร์เซ็นต์</span>
+            <input id="splitPercentInput" data-split-field="amountPercent" value="${esc(amountPercent)}" placeholder="เช่น 60" inputmode="decimal">
+          </label>
+          <label>
+            <span>${firstSplit ? "งวดแรกที่จะเก็บข้อมูลเดิม" : "เลขงวดใหม่"}</span>
+            <input id="splitNewNoInput" data-split-field="newNo" value="${esc(newNo)}" ${firstSplit ? "readonly" : ""} placeholder="เช่น ${esc(nextSubPeriodNo(period))}">
+          </label>
+        </div>
+        ${firstSplit ? `
+          <div class="notice">ครั้งแรกที่ซอยงวด ระบบจะเปลี่ยนงวดหลักเป็น ${esc(mainNo)}.1 และสร้าง ${esc(mainNo)}.2 เป็นมูลค่าส่วนที่เหลืออัตโนมัติ</div>
+        ` : `
+          <div>
+            <div class="split-inline-note" style="margin-bottom:6px">เลือกรูปแบบเลขงวดใหม่</div>
+            <div class="split-mode-grid">
+              <button type="button" class="split-mode ${splitDraft.mode === "same" ? "active" : ""}" data-action="set-split-mode" data-split-mode="same">
+                ระดับเดียวกัน
+                <small>${esc(nextSubPeriodNo(period))}</small>
+              </button>
+              <button type="button" class="split-mode ${splitDraft.mode === "child" ? "active" : ""}" data-action="set-split-mode" data-split-mode="child">
+                ย่อยใต้ต้นทาง
+                <small>${esc(nextChildPeriodNo(period))}</small>
+              </button>
+              <button type="button" class="split-mode ${splitDraft.mode === "custom" ? "active" : ""}" data-action="set-split-mode" data-split-mode="custom">
+                กำหนดเอง
+                <small>พิมพ์เลขงวดเอง</small>
+              </button>
+            </div>
+          </div>
+        `}
+        <div id="splitPreview">${splitDialogPreviewHtml()}</div>
+      `;
+    }
+
+    function openSplitDialog(id) {
       const period = getPeriod(id);
       if (!period) return;
       const rows = fullMainGroup(period);
       const mainNo = periodMainNo(period);
-      recordHistory("ซอยงวดงาน");
-      if (rows.length === 1 && String(period.no) === mainNo) {
+      const mainValue = n(period.mainValue) || n(period.periodValue);
+      if (!mainValue) return showToast("กรอกมูลค่างวดหลักก่อนซอยงวด");
+      const firstSplit = rows.length === 1 && String(period.no) === mainNo;
+      const defaultValue = firstSplit ? mainValue / 2 : 0;
+      splitDraft = {
+        periodId: id,
+        amountValue: firstSplit ? formatSplitInput(defaultValue) : "",
+        amountPercent: firstSplit ? "50" : "",
+        mode: "same",
+        newNo: firstSplit ? `${mainNo}.1` : nextSubPeriodNo(period)
+      };
+      renderSplitDialog();
+      $("#splitDialog").showModal();
+      requestAnimationFrame(() => $("#splitValueInput")?.select());
+    }
+
+    function closeSplitDialog() {
+      $("#splitDialog")?.close();
+      splitDraft = null;
+    }
+
+    function splitPeriod(id) {
+      openSplitDialog(id);
+    }
+
+    function updateSplitDraftField(target) {
+      if (!splitDraft) return;
+      const field = target.dataset.splitField;
+      splitDraft[field] = target.value;
+      const ctx = splitDialogContext();
+      if (ctx && field === "amountValue") {
+        const amount = parseSplitNumber(target.value);
+        const percent = ctx.mainValue ? amount / ctx.mainValue * 100 : 0;
+        splitDraft.amountPercent = formatSplitInput(percent, 2);
+        const percentInput = $("#splitPercentInput");
+        if (percentInput) percentInput.value = splitDraft.amountPercent;
+      }
+      if (ctx && field === "amountPercent") {
+        const percent = parseSplitNumber(target.value);
+        const amount = ctx.mainValue * percent / 100;
+        splitDraft.amountValue = formatSplitInput(amount, 0);
+        const valueInput = $("#splitValueInput");
+        if (valueInput) valueInput.value = splitDraft.amountValue;
+      }
+      if (field === "newNo") splitDraft.mode = "custom";
+      renderSplitPreview();
+    }
+
+    function applySplitDialog() {
+      const result = splitDialogData();
+      if (!result.ok) {
+        renderSplitPreview();
+        return showToast(result.message);
+      }
+      const { period, mainNo, mainValue, firstSplit } = result.ctx;
+      if (firstSplit) {
+        const sourceEnabled = periodEnabled(period);
+        recordHistory("ซอยงวดงานครั้งแรก");
         period.no = `${mainNo}.1`;
         period.title = periodDisplayTitle(period);
+        addPeriodValueHistory(period, "periodValue", period.periodValue, result.firstValue, `ซอยงวดเป็น ${result.firstNo}`);
+        period.mainValue = mainValue;
+        period.periodValue = result.firstValue;
         updatePeriodPercent(period);
+        const newPeriod = {
+          id: uid("p"),
+          building: period.building,
+          mainNo,
+          mainValue,
+          no: result.secondNo,
+          title: periodDisplayTitle({ no: result.secondNo }),
+          description: "",
+          status: "รอทำ",
+          periodValue: result.secondValue,
+          periodPercent: mainValue ? result.secondValue / mainValue * 100 : 0,
+          enabled: true,
+          items: []
+        };
+        state.periods.push(newPeriod);
+        if (sourceEnabled) setPeriodEnabled(newPeriod.id, true);
+        state.ui.editingPeriodId = period.id;
+        state.ui.editingMainPeriodKey = "";
+        saveState();
+        closeSplitDialog();
+        renderPeriods();
+        scrollPageTop();
+        showToast(`ซอยงวด ${mainNo} เป็น ${result.firstNo} และ ${result.secondNo} แล้ว`);
+        return;
       }
-      const refreshedRows = fullMainGroup(period);
-      const usedValue = refreshedRows.reduce((sum, row) => sum + n(row.periodValue), 0);
-      const remaining = Math.max(0, n(period.mainValue) - usedValue);
-      const draft = {
+
+      const sourceEnabled = periodEnabled(period);
+      recordHistory("ซอยงวดงานเพิ่มเติม");
+      addPeriodValueHistory(period, "periodValue", period.periodValue, result.sourceAfter, `ซอยออกเป็น ${result.newNo}`);
+      period.periodValue = result.sourceAfter;
+      updatePeriodPercent(period);
+      const newPeriod = {
+        id: uid("p"),
         building: period.building,
         mainNo,
-        mainValue: n(period.mainValue),
-        useSubPeriod: true,
-        no: nextSubPeriodNo(period),
-        periodValue: remaining || "",
-        periodPercent: remaining && n(period.mainValue) ? Number((remaining / n(period.mainValue) * 100).toFixed(2)) : "",
+        mainValue,
+        no: result.newNo,
+        title: periodDisplayTitle({ no: result.newNo }),
         status: "รอทำ",
-        description: ""
+        description: "",
+        periodValue: result.newValue,
+        periodPercent: mainValue ? result.newValue / mainValue * 100 : 0,
+        enabled: true,
+        items: []
       };
-      state.ui.editingPeriodId = "__new__";
+      state.periods.push(newPeriod);
+      if (sourceEnabled) setPeriodEnabled(newPeriod.id, true);
+      state.ui.editingPeriodId = period.id;
       state.ui.editingMainPeriodKey = "";
-      state.ui.newPeriodDraft = draft;
+      state.ui.newPeriodDraft = null;
+      saveState();
+      closeSplitDialog();
+      renderPeriods();
+      scrollPageTop();
+      showToast(`ซอยงวด ${period.no} ออกเป็น ${result.newNo} แล้ว`);
+    }
+
+    function mergePeriodGroup(key) {
+      const [building, mainNo] = String(key || "").split("|");
+      const rows = mainGroupByKey(building, mainNo);
+      if (!rows.length) return;
+      const hasSubs = hasSubPeriods(rows);
+      if (!hasSubs) return showToast("งวดนี้ยังไม่ได้ซอย");
+      if (rows.length > 1 && !confirm(`รวมงวดย่อย ${rows.length} งวดกลับเป็นงวดหลัก ${mainNo}? ข้อมูลรายวันและรายการงานจะถูกรวมไว้ในงวดหลัก`)) return;
+      recordHistory("รวมกลับเป็นงวดหลัก");
+      const mainValue = rows.reduce((best, row) => Math.max(best, n(row.mainValue)), n(rows[0].mainValue)) || rows.reduce((sum, row) => sum + n(row.periodValue), 0);
+      const base = rows[0];
+      const ids = new Set(rows.map((row) => row.id));
+      const mergedItems = [];
+      rows.forEach((row) => {
+        (row.items || []).forEach((item) => {
+          if (!mergedItems.some((existing) => existing.id === item.id)) mergedItems.push(item);
+        });
+      });
+      addPeriodValueHistory(base, "periodValue", base.periodValue, mainValue, `รวมกลับเป็นงวด ${mainNo}`);
+      base.no = mainNo;
+      base.mainNo = mainNo;
+      base.mainValue = mainValue;
+      base.periodValue = mainValue;
+      base.periodPercent = 100;
+      base.title = periodDisplayTitle(base);
+      base.items = mergedItems;
+      state.periods = state.periods.filter((row) => row.id === base.id || !ids.has(row.id));
+      state.workPlans.forEach((plan) => {
+        const selected = (plan.periodIds || []).some((id) => ids.has(id));
+        const nextIds = (plan.periodIds || []).filter((id) => !ids.has(id));
+        if (selected && !nextIds.includes(base.id)) nextIds.push(base.id);
+        plan.periodIds = nextIds;
+      });
+      state.ui.editingPeriodId = base.id;
+      state.ui.editingMainPeriodKey = "";
+      state.ui.newPeriodDraft = null;
       saveState();
       renderPeriods();
       scrollPageTop();
-      showToast("เปิดฟอร์มซอยงวดใหม่แล้ว");
+      showToast(`รวมกลับเป็นงวด ${mainNo} แล้ว`);
     }
 
     function handleClick(event) {
@@ -4842,6 +5381,18 @@
       if (action === "open-period-editor") return openPeriodEditor(button.dataset.periodId);
       if (action === "close-period-editor") return closePeriodEditor();
       if (action === "split-period") return splitPeriod(button.dataset.periodId);
+      if (action === "close-split-dialog") return closeSplitDialog();
+      if (action === "save-split-dialog") return applySplitDialog();
+      if (action === "set-split-mode") {
+        const ctx = splitDialogContext();
+        if (!ctx || !splitDraft) return;
+        splitDraft.mode = button.dataset.splitMode || "same";
+        if (splitDraft.mode !== "custom") splitDraft.newNo = splitModeDefaultNo(ctx.period, splitDraft.mode);
+        renderSplitDialog();
+        if (splitDraft.mode === "custom") requestAnimationFrame(() => $("#splitNewNoInput")?.focus());
+        return;
+      }
+      if (action === "merge-period-group") return mergePeriodGroup(button.dataset.periodMainKey);
       if (action === "apply-period-filter") return renderPeriods();
       if (action === "add-item") return addItem(button.dataset.periodId);
       if (action === "enable-building-periods") return setBuildingPeriodsEnabled(button.dataset.building, true);
@@ -4871,6 +5422,7 @@
 
     function handleInput(event) {
       const target = event.target;
+      if (target.dataset.splitField) return updateSplitDraftField(target);
       if (target.dataset.setting) {
         const key = target.dataset.setting;
         if (["dayHours", "controlPercent"].includes(key)) state.settings[key] = n(target.value);
@@ -6214,6 +6766,12 @@
     $("#saveCellBtn").addEventListener("click", saveCellDraft);
     $("#clearCellBtn").addEventListener("click", clearCellDraft);
     $("#saveClaimBtn").addEventListener("click", saveClaimDateChange);
+    $("#splitDialog").addEventListener("close", (event) => {
+      if (!event.target.open) splitDraft = null;
+    });
+    $("#splitDialog").addEventListener("click", (event) => {
+      if (event.target?.id === "splitDialog") closeSplitDialog();
+    });
 
     renderAll();
   </script>
