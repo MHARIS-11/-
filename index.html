@@ -425,16 +425,16 @@
     .ring span { text-align: center; }
     .comparison-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
     }
     .comparison-card {
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: 12px;
+      padding: 18px;
       background: var(--surface);
       display: grid;
-      gap: 10px;
+      gap: 16px;
     }
     .comparison-card header {
       display: flex;
@@ -443,35 +443,26 @@
       gap: 8px;
     }
     .comparison-card h3 {
-      font-size: 16px;
+      font-size: 22px;
+      line-height: 1.1;
     }
     .comparison-card strong {
       font-size: 20px;
       font-variant-numeric: tabular-nums;
     }
-    .budget-readout {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      align-items: baseline;
-      font-size: 12px;
-      font-weight: 800;
-    }
-    .budget-readout strong {
-      font-size: 13px;
-    }
     .labor-budget-wrap {
-      padding-top: 20px;
+      padding-top: 18px;
       display: grid;
-      gap: 5px;
+      gap: 12px;
     }
     .labor-budget {
-      height: 28px;
+      height: 42px;
       border-radius: 999px;
       position: relative;
       overflow: visible;
       background: var(--surface-2);
       border: 1px solid var(--line);
+      box-shadow: inset 0 1px 3px oklch(0.2 0.02 160 / 0.12);
     }
     .labor-budget-fill {
       display: block;
@@ -482,50 +473,147 @@
     }
     .labor-budget.warning .labor-budget-fill { background: var(--warning); }
     .labor-budget.danger .labor-budget-fill { background: var(--actual); }
-    .labor-budget-percent {
+    .comparison-card .labor-budget-percent {
       position: absolute;
       z-index: 3;
-      left: 8px;
+      left: max(34px, calc(var(--used) * 0.5%));
       top: 50%;
-      transform: translateY(-50%);
+      transform: translate(-50%, -50%);
       display: inline-grid;
       place-items: center;
-      min-width: 42px;
-      height: 20px;
-      padding-inline: 8px;
-      border-radius: 999px;
-      background: var(--primary);
       color: white;
-      font-size: 12px;
+      font-size: 18px;
       font-weight: 900;
       font-variant-numeric: tabular-nums;
-      box-shadow: 0 0 0 2px oklch(1 0 0 / 0.72);
+      text-shadow: 0 1px 2px oklch(0.16 0.02 160 / 0.45);
+      pointer-events: none;
     }
-    .labor-budget.warning .labor-budget-percent { background: oklch(0.5 0.13 70); }
-    .labor-budget.danger .labor-budget-percent { background: var(--danger); }
     .labor-budget-control {
       position: absolute;
       z-index: 2;
       left: min(100%, calc(var(--control) * 1%));
-      top: -12px;
-      bottom: -3px;
-      border-left: 2px dashed oklch(0.2 0.02 160);
+      top: -14px;
+      bottom: -22px;
+      border-left: 2px dashed oklch(0.55 0.16 55);
       pointer-events: none;
     }
     .labor-budget-control em {
       position: absolute;
-      top: -17px;
+      top: calc(100% + 4px);
       left: 50%;
       transform: translateX(-50%);
       white-space: nowrap;
       font-style: normal;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 900;
-      color: var(--ink);
-      background: var(--bg);
+      color: oklch(0.55 0.16 55);
+      background: transparent;
+      border: 0;
+      padding: 0;
+    }
+    .labor-budget-axis {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 2px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .labor-budget-axis span:first-child {
+      color: var(--primary);
+    }
+    .labor-budget-axis span:last-child {
+      color: var(--muted);
+    }
+    .comparison-readout {
       border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 1px 6px;
+      border-radius: var(--radius);
+      background: oklch(0.99 0.003 160);
+      padding: 10px 12px;
+      text-align: center;
+      font-weight: 900;
+      font-size: 15px;
+      font-variant-numeric: tabular-nums;
+    }
+    .comparison-readout strong {
+      font-size: 17px;
+      color: var(--primary);
+    }
+    .comparison-metrics {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--bg);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      overflow: hidden;
+    }
+    .comparison-metrics > div {
+      padding: 14px 16px;
+      min-height: 86px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .comparison-metrics > div:nth-child(2n) { border-right: 0; }
+    .comparison-metrics > div:nth-last-child(-n + 2) { border-bottom: 0; }
+    .comparison-metrics span {
+      display: block;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .comparison-metrics strong {
+      color: var(--primary);
+      font-size: 26px;
+      line-height: 1.05;
+    }
+    .comparison-metrics strong.danger-text {
+      color: var(--danger);
+    }
+    .comparison-legend {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: auto auto auto minmax(0, 1fr);
+      gap: 18px;
+      align-items: center;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .comparison-legend .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+    .legend-swatch {
+      width: 28px;
+      height: 18px;
+      border-radius: 5px;
+      background: var(--primary);
+      display: inline-block;
+    }
+    .legend-line {
+      width: 34px;
+      height: 0;
+      border-top: 2px dashed oklch(0.55 0.16 55);
+      display: inline-block;
+    }
+    .legend-empty {
+      width: 28px;
+      height: 18px;
+      border-radius: 5px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      display: inline-block;
+    }
+    .legend-note {
+      justify-self: end;
+      text-align: right;
     }
     .budget-bar,
     .cost-stack {
@@ -2626,16 +2714,19 @@
                 <span class="labor-budget-percent">${money(usedPct, 1)}%</span>
                 <span class="labor-budget-control"><em>งบควบคุม ${money(controlPct, 0)}%</em></span>
               </div>
-              <div class="budget-readout">
+              <div class="labor-budget-axis">
                 <span>ใช้แล้ว</span>
-                <strong>${money(s.total, 0)} / ค่าแรงรวม 100% ${money(s.laborValue, 0)}</strong>
+                <span>ค่าแรงรวม 100%</span>
+              </div>
+              <div class="comparison-readout">
+                ใช้แล้ว <strong>${money(s.total, 0)}</strong> / ค่าแรงรวม <strong>${money(s.laborValue, 0)}</strong>
               </div>
             </div>
-            <div class="metric-grid">
+            <div class="comparison-metrics">
               <div><span>ค่าแรงจริง</span><strong>${money(s.laborActual, 0)}</strong></div>
               <div><span>ค่าเครื่องจักร</span><strong>${money(s.machineActual, 0)}</strong></div>
               <div><span>งบควบคุม</span><strong>${money(s.control, 0)}</strong></div>
-              <div><span>${s.balance < 0 ? "เกิน" : "คงเหลือ"}</span><strong>${money(Math.abs(s.balance), 0)}</strong></div>
+              <div><span>${s.balance < 0 ? "เกิน" : "คงเหลือ"}</span><strong class="${s.balance < 0 ? "danger-text" : ""}">${money(Math.abs(s.balance), 0)}</strong></div>
             </div>
           </div>
         `;
@@ -2743,7 +2834,15 @@
             </div>
             <div class="dashboard-card">
               <h2>เปรียบเทียบอาคาร</h2>
-              <div class="comparison-grid">${comparison}</div>
+              <div class="comparison-grid">
+                ${comparison}
+                <div class="comparison-legend">
+                  <span class="legend-item"><i class="legend-swatch"></i>ใช้แล้ว (ค่าแรงจริง + ค่าเครื่องจักร)</span>
+                  <span class="legend-item"><i class="legend-line"></i>งบควบคุม ${money(state.settings.controlPercent, 0)}%</span>
+                  <span class="legend-item"><i class="legend-empty"></i>คงเหลือ</span>
+                  <span class="legend-note">หมายเหตุ: ค่าแรงรวม = 100%</span>
+                </div>
+              </div>
             </div>
           </div>
 
