@@ -451,9 +451,9 @@
       font-variant-numeric: tabular-nums;
     }
     .labor-budget-wrap {
-      padding-top: 18px;
+      padding-top: 8px;
       display: grid;
-      gap: 12px;
+      gap: 10px;
     }
     .labor-budget {
       height: 42px;
@@ -493,13 +493,13 @@
       z-index: 2;
       left: min(100%, calc(var(--control) * 1%));
       top: -14px;
-      bottom: -22px;
+      bottom: -10px;
       border-left: 2px dashed oklch(0.55 0.16 55);
       pointer-events: none;
     }
     .labor-budget-control em {
       position: absolute;
-      top: calc(100% + 4px);
+      top: calc(100% + 6px);
       left: 50%;
       transform: translateX(-50%);
       white-space: nowrap;
@@ -512,11 +512,10 @@
       padding: 0;
     }
     .labor-budget-axis {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
-      margin-top: 2px;
+      margin-top: 28px;
       font-size: 13px;
       font-weight: 900;
     }
@@ -525,19 +524,21 @@
     }
     .labor-budget-axis span:last-child {
       color: var(--muted);
+      text-align: right;
     }
     .comparison-readout {
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: oklch(0.99 0.003 160);
-      padding: 10px 12px;
+      padding: 9px 10px;
       text-align: center;
       font-weight: 900;
-      font-size: 15px;
+      font-size: 14px;
       font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
     .comparison-readout strong {
-      font-size: 17px;
+      font-size: 16px;
       color: var(--primary);
     }
     .comparison-metrics {
@@ -556,6 +557,9 @@
     }
     .comparison-metrics > div:nth-child(2n) { border-right: 0; }
     .comparison-metrics > div:nth-last-child(-n + 2) { border-bottom: 0; }
+    .comparison-metrics .remaining-metric {
+      background: var(--info-soft);
+    }
     .comparison-metrics span {
       display: block;
       color: var(--ink);
@@ -2719,14 +2723,14 @@
                 <span>ค่าแรงรวม 100%</span>
               </div>
               <div class="comparison-readout">
-                ใช้แล้ว <strong>${money(s.total, 0)}</strong> / ค่าแรงรวม <strong>${money(s.laborValue, 0)}</strong>
+                ใช้แล้ว <strong>${money(s.total, 0)}</strong> / <strong>${money(s.laborValue, 0)}</strong>
               </div>
             </div>
             <div class="comparison-metrics">
               <div><span>ค่าแรงจริง</span><strong>${money(s.laborActual, 0)}</strong></div>
               <div><span>ค่าเครื่องจักร</span><strong>${money(s.machineActual, 0)}</strong></div>
-              <div><span>งบควบคุม</span><strong>${money(s.control, 0)}</strong></div>
-              <div><span>${s.balance < 0 ? "เกิน" : "คงเหลือ"}</span><strong class="${s.balance < 0 ? "danger-text" : ""}">${money(Math.abs(s.balance), 0)}</strong></div>
+              <div><span>งบควบคุม (${money(controlPct, 0)}%)</span><strong>${money(s.control, 0)}</strong></div>
+              <div class="remaining-metric"><span>${s.balance < 0 ? "เกิน" : "คงเหลือ"}</span><strong class="${s.balance < 0 ? "danger-text" : ""}">${money(Math.abs(s.balance), 0)}</strong></div>
             </div>
           </div>
         `;
@@ -6024,11 +6028,18 @@
       ctx.fillStyle = "#111";
       ctx.fillText(`แผนงานประจำงวดโครงการ ${state.settings.projectName} ${titleView}`, x0 + tableW / 2, y + 22 * scale);
       const claimDate = planClaimDate();
+      let claimLineX = null;
+      let claimBoxBottomY = null;
       if (claimDate) {
+        const claimIndex = dates.indexOf(claimDate);
         const boxW = 154 * scale;
         const boxH = 46 * scale;
-        const boxX = x0 + tableW - boxW - 12 * scale;
+        const minBoxX = x0 + 4 * scale;
+        const maxBoxX = x0 + tableW - boxW - 4 * scale;
+        claimLineX = claimIndex >= 0 ? x0 + leftW + claimIndex * dateW + dateW / 2 : x0 + tableW - boxW / 2 - 12 * scale;
+        const boxX = Math.max(minBoxX, Math.min(maxBoxX, claimLineX - boxW / 2));
         const boxY = y + 12 * scale;
+        claimBoxBottomY = boxY + boxH;
         ctx.strokeStyle = "#111";
         ctx.strokeRect(boxX, boxY, boxW, boxH);
         ctx.font = `bold ${10 * scale}px Tahoma, sans-serif`;
@@ -6133,16 +6144,14 @@
         });
       }
 
-      const claimIndex = dates.indexOf(claimDate);
-      if (claimIndex >= 0) {
-        const claimX = x0 + leftW + claimIndex * dateW + dateW / 2;
+      if (claimLineX !== null && dates.includes(claimDate)) {
         ctx.save();
         ctx.setLineDash([6 * scale, 5 * scale]);
         ctx.strokeStyle = "#111";
         ctx.lineWidth = 2 * scale;
         ctx.beginPath();
-        ctx.moveTo(claimX, scheduleTopY - 10 * scale);
-        ctx.lineTo(claimX, y + rowH * 2);
+        ctx.moveTo(claimLineX, (claimBoxBottomY || scheduleTopY) + 4 * scale);
+        ctx.lineTo(claimLineX, y + rowH * 2);
         ctx.stroke();
         ctx.restore();
       }
