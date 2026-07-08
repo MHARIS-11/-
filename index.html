@@ -77,7 +77,7 @@
       color: var(--muted);
     }
     .ghost:hover {
-      background: var(--surface-2);
+      background: var(--info-soft);
       border-color: var(--line);
       color: var(--ink);
     }
@@ -460,7 +460,7 @@
       border-radius: 999px;
       position: relative;
       overflow: visible;
-      background: var(--surface-2);
+      background: var(--info-soft);
       border: 1px solid var(--line);
       box-shadow: inset 0 1px 3px oklch(0.2 0.02 160 / 0.12);
     }
@@ -499,7 +499,7 @@
     }
     .labor-budget-control em {
       position: absolute;
-      top: calc(100% + 6px);
+      top: calc(100% + 7px);
       left: 50%;
       transform: translateX(-50%);
       white-space: nowrap;
@@ -511,26 +511,12 @@
       border: 0;
       padding: 0;
     }
-    .labor-budget-axis {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 28px;
-      font-size: 13px;
-      font-weight: 900;
-    }
-    .labor-budget-axis span:first-child {
-      color: var(--primary);
-    }
-    .labor-budget-axis span:last-child {
-      color: var(--muted);
-      text-align: right;
-    }
     .comparison-readout {
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: oklch(0.99 0.003 160);
       padding: 9px 10px;
+      margin-top: 24px;
       text-align: center;
       font-weight: 900;
       font-size: 14px;
@@ -557,15 +543,16 @@
     }
     .comparison-metrics > div:nth-child(2n) { border-right: 0; }
     .comparison-metrics > div:nth-last-child(-n + 2) { border-bottom: 0; }
-    .comparison-metrics .remaining-metric {
-      background: var(--info-soft);
-    }
     .comparison-metrics span {
       display: block;
       color: var(--ink);
       font-size: 14px;
       font-weight: 800;
       margin-bottom: 6px;
+    }
+    .comparison-metrics .metric-nowrap {
+      white-space: nowrap;
+      font-size: 13px;
     }
     .comparison-metrics strong {
       color: var(--primary);
@@ -611,7 +598,7 @@
       width: 28px;
       height: 18px;
       border-radius: 5px;
-      background: var(--surface-2);
+      background: var(--info-soft);
       border: 1px solid var(--line);
       display: inline-block;
     }
@@ -2718,10 +2705,6 @@
                 <span class="labor-budget-percent">${money(usedPct, 1)}%</span>
                 <span class="labor-budget-control"><em>งบควบคุม ${money(controlPct, 0)}%</em></span>
               </div>
-              <div class="labor-budget-axis">
-                <span>ใช้แล้ว</span>
-                <span>ค่าแรงรวม 100%</span>
-              </div>
               <div class="comparison-readout">
                 ใช้แล้ว <strong>${money(s.total, 0)}</strong> / <strong>${money(s.laborValue, 0)}</strong>
               </div>
@@ -2729,7 +2712,7 @@
             <div class="comparison-metrics">
               <div><span>ค่าแรงจริง</span><strong>${money(s.laborActual, 0)}</strong></div>
               <div><span>ค่าเครื่องจักร</span><strong>${money(s.machineActual, 0)}</strong></div>
-              <div><span>งบควบคุม (${money(controlPct, 0)}%)</span><strong>${money(s.control, 0)}</strong></div>
+              <div><span class="metric-nowrap">งบควบคุม (${money(controlPct, 0)}%)</span><strong>${money(s.control, 0)}</strong></div>
               <div class="remaining-metric"><span>${s.balance < 0 ? "เกิน" : "คงเหลือ"}</span><strong class="${s.balance < 0 ? "danger-text" : ""}">${money(Math.abs(s.balance), 0)}</strong></div>
             </div>
           </div>
@@ -2843,7 +2826,7 @@
                 <div class="comparison-legend">
                   <span class="legend-item"><i class="legend-swatch"></i>ใช้แล้ว (ค่าแรงจริง + ค่าเครื่องจักร)</span>
                   <span class="legend-item"><i class="legend-line"></i>งบควบคุม ${money(state.settings.controlPercent, 0)}%</span>
-                  <span class="legend-item"><i class="legend-empty"></i>คงเหลือ</span>
+                  <span class="legend-item"><i class="legend-empty"></i>คงเหลือในหลอด</span>
                   <span class="legend-note">หมายเหตุ: ค่าแรงรวม = 100%</span>
                 </div>
               </div>
