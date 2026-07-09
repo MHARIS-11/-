@@ -1513,11 +1513,76 @@
       padding: 10px 12px;
       font-weight: 800;
     }
+    .accum-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .accum-box {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+    .accum-box h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+    .accum-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+      font-weight: 800;
+    }
+    .accum-line:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+    .accum-line span:first-child {
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .accum-total {
+      border-radius: 8px;
+      background: oklch(0.95 0.03 160);
+      padding: 10px;
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--brand);
+      text-align: right;
+    }
+    .accum-panel-button {
+      display: grid;
+      gap: 4px;
+      text-align: left;
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 10px;
+    }
+    .accum-panel-button span {
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .accum-panel-button strong {
+      font-size: 20px;
+      color: var(--brand);
+    }
+    .accum-panel-button:hover {
+      border-color: var(--brand);
+      background: oklch(0.98 0.01 160);
+    }
     @media (max-width: 720px) {
       .split-source-strip,
       .split-field-grid,
       .split-mode-grid,
-      .split-preview-row {
+      .split-preview-row,
+      .accum-grid {
         grid-template-columns: 1fr;
       }
       .split-dialog .dialog-actions {
@@ -1600,7 +1665,7 @@
       .dashboard-grid { grid-template-columns: 1fr; }
       .dashboard-hero { padding: 12px; }
       .attendance-grid { max-height: calc(100vh - 285px); }
-      .attendance-table { min-width: 1040px; }
+      .attendance-table { min-width: 1180px; }
       .attendance-table .col-code { width: 78px; }
       .attendance-table .col-name { width: 160px; left: 78px; }
       .plan-grid { max-height: calc(100vh - 260px); }
@@ -1744,6 +1809,21 @@
     </div>
   </dialog>
 
+  <dialog id="accumDialog" class="split-dialog" aria-labelledby="accumDialogTitle">
+    <div class="dialog-head">
+      <div>
+        <h2 id="accumDialogTitle">ตั้งค่ายอดสะสม</h2>
+        <p class="muted" id="accumDialogMeta"></p>
+      </div>
+      <button type="button" class="ghost" data-action="close-accum-dialog" aria-label="ปิด">ปิด</button>
+    </div>
+    <div class="dialog-body" id="accumDialogBody"></div>
+    <div class="dialog-actions">
+      <button type="button" class="ghost" data-action="close-accum-dialog">ยกเลิก</button>
+      <button type="button" id="saveAccumBtn" class="primary" data-action="save-accum-dialog">บันทึกยอดตั้งต้น</button>
+    </div>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script>
@@ -1833,7 +1913,7 @@
           periodDataBuilding: ""
         },
         buildings: [""],
-        manual: { ALL: { contractLaborCost: 0, costToUpdate: 0, note: "" } },
+        manual: { ALL: { initialLaborCost: 0, initialMachineCost: 0, note: "" } },
         workers: [],
         machines: [],
         holidays: [],
@@ -1856,12 +1936,17 @@
 
     function cloneManual(manual = {}) {
       const entries = Object.entries(manual || {});
-      const cloned = Object.fromEntries(entries.map(([key, value]) => [key, { contractLaborCost: 0, costToUpdate: 0, note: "", ...(value || {}) }]));
-      cloned.ALL = cloned.ALL || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+      const base = (value = {}) => ({
+        initialLaborCost: n(value.initialLaborCost),
+        initialMachineCost: n(value.initialMachineCost),
+        note: String(value.note || "")
+      });
+      const cloned = Object.fromEntries(entries.map(([key, value]) => [key, base(value || {})]));
+      cloned.ALL = cloned.ALL || base();
       if (manual.G || manual.I || manual.GI) {
-        cloned.G = cloned.G || { contractLaborCost: 0, costToUpdate: 0, note: "" };
-        cloned.I = cloned.I || { contractLaborCost: 0, costToUpdate: 0, note: "" };
-        cloned.GI = cloned.GI || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+        cloned.G = cloned.G || base(manual.G);
+        cloned.I = cloned.I || base(manual.I);
+        cloned.GI = cloned.GI || base(manual.GI);
       }
       return cloned;
     }
@@ -1977,7 +2062,7 @@
       next.machineUsage = cloneMachineUsage(next.machineUsage || {});
       next.buildings.filter(Boolean).forEach((building) => {
         next.machineUsage[building] = next.machineUsage[building] || {};
-        next.manual[building] = next.manual[building] || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+        next.manual[building] = next.manual[building] || { initialLaborCost: 0, initialMachineCost: 0, note: "" };
       });
       next.ui = next.ui || {};
       if (!Array.isArray(next.workPlans) || !next.workPlans.length) {
@@ -2552,6 +2637,136 @@
       return totalLaborCost(view, date) + totalMachineCost(view, date);
     }
 
+    function itemBuildingLookup() {
+      const map = new Map();
+      state.periods.forEach((period) => {
+        (period.items || []).forEach((item) => {
+          if (item?.id && !map.has(item.id)) map.set(item.id, period.building);
+        });
+      });
+      return map;
+    }
+
+    function manualSettingsFor(view, plan = activeWorkPlan()) {
+      const empty = { initialLaborCost: 0, initialMachineCost: 0, note: "" };
+      if (plan) {
+        plan.manual = cloneManual(plan.manual || state.manual);
+        plan.manual[view] = plan.manual[view] || { ...empty };
+        return plan.manual[view];
+      }
+      state.manual[view] = state.manual[view] || { ...empty };
+      return state.manual[view];
+    }
+
+    function appAccumulatedActuals(view, cutoff = planUpdateDate()) {
+      const buildings = new Set(buildingsForView(view));
+      const itemBuildings = itemBuildingLookup();
+      const dates = [];
+      let labor = 0;
+      let machine = 0;
+      (state.workPlans || []).forEach((plan) => {
+        Object.entries(plan.itemData || {}).forEach(([itemId, data]) => {
+          if (!buildings.has(itemBuildings.get(itemId))) return;
+          Object.entries(data?.actual || {}).forEach(([date, entries]) => {
+            if (date > cutoff) return;
+            let dayLabor = 0;
+            (entries || []).forEach((entry) => { dayLabor += laborAmount(entry); });
+            if (dayLabor > 0) {
+              labor += dayLabor;
+              dates.push(date);
+            }
+          });
+        });
+        const usage = plan.machineUsage || {};
+        buildings.forEach((building) => {
+          Object.entries(usage[building] || {}).forEach(([date, rows]) => {
+            if (date > cutoff) return;
+            const dayMachine = (rows || []).reduce((sum, row) => sum + n(row.amount), 0);
+            if (dayMachine > 0) {
+              machine += dayMachine;
+              dates.push(date);
+            }
+          });
+        });
+      });
+      const firstDate = dates.length ? dates.sort()[0] : "";
+      return { firstDate, labor, machine };
+    }
+
+    function accumulatedTotalsFor(view, plan = activeWorkPlan()) {
+      const manual = manualSettingsFor(view, plan);
+      const app = appAccumulatedActuals(view, planUpdateDate(plan));
+      const laborTotal = app.labor + n(manual.initialLaborCost);
+      const costToUpdate = laborTotal + app.machine + n(manual.initialMachineCost);
+      return {
+        ...manual,
+        firstDate: app.firstDate,
+        appLabor: app.labor,
+        appMachine: app.machine,
+        contractLaborCost: laborTotal,
+        costToUpdate
+      };
+    }
+
+    function renderAccumDialog() {
+      const options = buildingViewOptions();
+      const view = options.includes(state.ui.manualView) ? state.ui.manualView : (options.at(-1) || "ALL");
+      const data = accumulatedTotalsFor(view);
+      $("#accumDialogMeta").textContent = `${viewLabel(view)} · อัปเดต ${dateLabel(planUpdateDate())}${data.firstDate ? ` · เริ่มนับ ${dateLabel(data.firstDate)}` : ""}`;
+      $("#accumDialogBody").innerHTML = `
+        <div class="accum-grid">
+          <div class="accum-box">
+            <h3>ค่าแรงต้นทุนสะสมถึงงวดปัจจุบัน</h3>
+            <div class="accum-line"><span>ค่าแรงในแอพ</span><strong>${money(data.appLabor, 0)}</strong></div>
+            <label><span>ค่าแรงตั้งต้นก่อนเริ่มจดในแอพ</span><input id="accumInitialLabor" data-accum-field="initialLaborCost" type="number" value="${esc(data.initialLaborCost)}"></label>
+            <div class="accum-total" id="accumLaborTotal">${money(data.contractLaborCost, 0)}</div>
+          </div>
+          <div class="accum-box">
+            <h3>ค่าแรง+ค่าเครื่องจักรสะสมถึงวัน update</h3>
+            <div class="accum-line"><span>ค่าแรงรวม</span><strong id="accumLaborCarry">${money(data.contractLaborCost, 0)}</strong></div>
+            <div class="accum-line"><span>ค่าเครื่องจักรในแอพ</span><strong>${money(data.appMachine, 0)}</strong></div>
+            <label><span>ค่าเครื่องจักรตั้งต้นก่อนเริ่มจดในแอพ</span><input id="accumInitialMachine" data-accum-field="initialMachineCost" type="number" value="${esc(data.initialMachineCost)}"></label>
+            <div class="accum-total" id="accumCostTotal">${money(data.costToUpdate, 0)}</div>
+          </div>
+        </div>
+        <label><span>หมายเหตุ</span><input id="accumNote" value="${esc(data.note)}"></label>
+      `;
+    }
+
+    function refreshAccumDialogTotals() {
+      if (!$("#accumDialog")?.open) return;
+      const options = buildingViewOptions();
+      const view = options.includes(state.ui.manualView) ? state.ui.manualView : (options.at(-1) || "ALL");
+      const base = accumulatedTotalsFor(view);
+      const laborTotal = base.appLabor + n($("#accumInitialLabor")?.value);
+      const costTotal = laborTotal + base.appMachine + n($("#accumInitialMachine")?.value);
+      if ($("#accumLaborTotal")) $("#accumLaborTotal").textContent = money(laborTotal, 0);
+      if ($("#accumLaborCarry")) $("#accumLaborCarry").textContent = money(laborTotal, 0);
+      if ($("#accumCostTotal")) $("#accumCostTotal").textContent = money(costTotal, 0);
+    }
+
+    function openAccumDialog() {
+      renderAccumDialog();
+      $("#accumDialog").showModal();
+    }
+
+    function closeAccumDialog() {
+      $("#accumDialog")?.close();
+    }
+
+    function saveAccumDialog() {
+      const options = buildingViewOptions();
+      const view = options.includes(state.ui.manualView) ? state.ui.manualView : (options.at(-1) || "ALL");
+      const manual = manualSettingsFor(view);
+      manual.initialLaborCost = n($("#accumInitialLabor")?.value);
+      manual.initialMachineCost = n($("#accumInitialMachine")?.value);
+      manual.note = $("#accumNote")?.value || "";
+      saveState();
+      closeAccumDialog();
+      renderDashboard();
+      showToast("บันทึกยอดตั้งต้นแล้ว");
+    }
+
     function totalLaborValue(view) {
       return periodsForView(view).reduce((sum, period) => sum + period.items.reduce((inner, item) => inner + n(item.laborValue), 0), 0);
     }
@@ -2704,7 +2919,7 @@
       const total = laborActual + machineActual;
       const control = laborValue * n(state.settings.controlPercent) / 100;
       const plan = activeWorkPlan();
-      const manual = plan?.manual?.[view] || state.manual[view] || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+      const manual = accumulatedTotalsFor(view, plan);
       return {
         view,
         periodValue,
@@ -2841,10 +3056,14 @@
         .sort((a, b) => naturalSort(a.code, b.code) || naturalSort(a.name, b.name))
         .map((worker) => {
           const days = workerDayMap.get(worker.id) || new Map();
+          const workedDays = dates.filter((date) => days.has(date) && date <= cutoff).length;
+          const absentDays = dates.filter((date) => !isHoliday(date) && date <= cutoff && !days.has(date)).length;
           return {
             worker,
             days,
             workedCount: days.size,
+            workedDays,
+            absentDays: days.size ? absentDays : 0,
             monthCost: [...days.values()].reduce((sum, row) => sum + row.cost, 0)
           };
         });
@@ -2947,11 +3166,12 @@
           </div>
         `;
       }).join("");
-      const mixTotal = main.laborActual + main.machineActual + n(main.manual.costToUpdate);
+      const initialTotal = n(main.manual.initialLaborCost) + n(main.manual.initialMachineCost);
+      const mixTotal = main.laborActual + main.machineActual + initialTotal;
       const mix = {
         labor: mixTotal ? main.laborActual / mixTotal * 100 : 0,
         machine: mixTotal ? main.machineActual / mixTotal * 100 : 0,
-        manual: mixTotal ? n(main.manual.costToUpdate) / mixTotal * 100 : 0
+        manual: mixTotal ? initialTotal / mixTotal * 100 : 0
       };
       const periodRows = periodsForView(mainView).map((period) => {
         const laborValue = periodLaborValue(period);
@@ -2998,7 +3218,7 @@
       `).join("") : `<p class="muted">${emptyText}</p>`;
 
       const manualView = viewOptions.includes(state.ui.manualView) ? state.ui.manualView : mainView;
-      const manual = state.manual[manualView] || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+      const manual = accumulatedTotalsFor(manualView);
       const manualOptions = viewOptions.map((view) => `<option value="${esc(view)}" ${manualView === view ? "selected" : ""}>${esc(viewLabel(view))}</option>`).join("");
       el.innerHTML = `
         <div class="dashboard-shell">
@@ -3045,7 +3265,7 @@
               <div class="inline-list">
                 <span class="pill red">ค่าแรง ${money(main.laborActual, 0)}</span>
                 <span class="pill">เครื่องจักร ${money(main.machineActual, 0)}</span>
-                <span class="pill amber">manual ${money(main.manual.costToUpdate, 0)}</span>
+                <span class="pill amber">ตั้งต้น ${money(initialTotal, 0)}</span>
               </div>
             </div>
             <div class="dashboard-card">
@@ -3095,15 +3315,26 @@
             </div>
             <div class="panel">
               <div class="panel-head">
-                <h2>ยอดกรอกเอง</h2>
+                <h2>ยอดสะสม</h2>
                 <select id="manualViewSelect" style="max-width:160px">
                   ${manualOptions}
                 </select>
               </div>
               <div class="panel-body form-grid">
-                <label><span>ค่าแรงต้นทุนสะสมถึงงวดปัจจุบัน</span><input type="number" data-manual="contractLaborCost" value="${esc(manual.contractLaborCost)}"></label>
-                <label><span>ค่าแรง+ค่าเครื่องจักรสะสมถึงวัน update</span><input type="number" data-manual="costToUpdate" value="${esc(manual.costToUpdate)}"></label>
-                <label style="grid-column:1/-1"><span>หมายเหตุ</span><input data-manual="note" value="${esc(manual.note)}"></label>
+                <button type="button" class="accum-panel-button" data-action="open-accum-dialog">
+                  <span>ค่าแรงต้นทุนสะสมถึงงวดปัจจุบัน</span>
+                  <strong>${money(manual.contractLaborCost, 0)}</strong>
+                </button>
+                <button type="button" class="accum-panel-button" data-action="open-accum-dialog">
+                  <span>ค่าแรง+ค่าเครื่องจักรสะสมถึงวัน update</span>
+                  <strong>${money(manual.costToUpdate, 0)}</strong>
+                </button>
+                <div class="muted" style="grid-column:1/-1">
+                  เริ่มนับ ${manual.firstDate ? dateLabel(manual.firstDate) : "-"} ถึง ${dateLabel(planUpdateDate())}
+                  · ตั้งต้นค่าแรง ${money(manual.initialLaborCost, 0)}
+                  · ตั้งต้นเครื่องจักร ${money(manual.initialMachineCost, 0)}
+                </div>
+                <button type="button" data-action="open-accum-dialog">ตั้งค่ายอดตั้งต้น</button>
               </div>
             </div>
           </div>
@@ -3141,7 +3372,7 @@
             </select></label>
             <label><span>วันเริ่มแผน</span><input inputmode="numeric" data-work-plan-date="startDate" value="${esc(thaiDateInput(planStartDate()))}" placeholder="วัน/เดือน/พ.ศ."></label>
             <label><span>วันจบแผน</span><input inputmode="numeric" data-work-plan-date="endDate" value="${esc(thaiDateInput(planEndDate()))}" placeholder="วัน/เดือน/พ.ศ."></label>
-            <label><span>วันที่ Update</span><input inputmode="numeric" data-work-plan-date="updateDate" value="${esc(thaiDateInput(planUpdateDate()))}" placeholder="วัน/เดือน/พ.ศ."></label>
+            <label><span>วันที่ Update</span><div class="inline-list"><input inputmode="numeric" data-work-plan-date="updateDate" value="${esc(thaiDateInput(planUpdateDate()))}" placeholder="วัน/เดือน/พ.ศ."><button type="button" data-action="set-update-today">วันนี้</button></div></label>
             <label><span>วันที่เบิกงวด</span><input inputmode="numeric" data-work-plan-date="claimDate" value="${esc(thaiDateInput(planClaimDate()))}" placeholder="วัน/เดือน/พ.ศ."></label>
             <button class="primary" data-action="add-work-plan">เพิ่มแผนใหม่ว่าง</button>
             <button data-action="open-claim-dialog">เลื่อนเบิกงวด</button>
@@ -3965,10 +4196,12 @@
             <td class="sticky col-code">${esc(row.worker.code)}</td>
             <td class="sticky col-name">${esc(row.worker.name)}</td>
             ${cells}
+            <td class="num">${row.workedCount ? money(row.workedDays, 0) : ""}</td>
+            <td class="num">${row.workedCount ? money(row.absentDays, 0) : ""}</td>
             <td class="num">${row.workedCount ? money(row.monthCost, 0) : ""}</td>
           </tr>
         `;
-      }).join("") || `<tr><td colspan="${data.dates.length + 3}" class="muted">ยังไม่มีรายชื่อคนงาน</td></tr>`;
+      }).join("") || `<tr><td colspan="${data.dates.length + 5}" class="muted">ยังไม่มีรายชื่อคนงาน</td></tr>`;
       const countRow = data.dates.map((date) => `<td class="${isHoliday(date) ? "holiday" : ""}">${data.dayWorkers.get(date)?.size || 0}</td>`).join("");
       const costRow = data.dates.map((date) => `<td class="num ${isHoliday(date) ? "holiday" : ""}">${money(data.dayCosts.get(date) || 0, 0)}</td>`).join("");
       el.innerHTML = `
@@ -4005,6 +4238,8 @@
                   <th class="sticky col-code" rowspan="2">รหัส</th>
                   <th class="sticky col-name" rowspan="2">ชื่อ-สกุล</th>
                   <th class="month-head" colspan="${Math.max(1, data.dates.length)}">${esc(monthYearLabel(`${monthKey}-01`))}</th>
+                  <th rowspan="2">มาทำงาน</th>
+                  <th rowspan="2">ขาด</th>
                   <th rowspan="2">ค่าแรงรวม</th>
                 </tr>
                 <tr>${dayHeaders || `<th></th>`}</tr>
@@ -4015,10 +4250,14 @@
                   <td class="sticky col-code" colspan="2">จำนวนคนลงงาน</td>
                   ${countRow}
                   <td></td>
+                  <td></td>
+                  <td></td>
                 </tr>
                 <tr class="summary-row">
                   <td class="sticky col-code" colspan="2">ค่าแรงรวม</td>
                   ${costRow}
+                  <td></td>
+                  <td></td>
                   <td class="num">${money([...data.dayCosts.values()].reduce((sum, value) => sum + value, 0), 0)}</td>
                 </tr>
               </tbody>
@@ -5346,6 +5585,7 @@
       if (action === "redo") return redo();
       if (action === "go-today") return goToToday();
       if (action === "add-work-plan") return addWorkPlan();
+      if (action === "set-update-today") return setUpdateDateToday();
       if (action === "open-claim-dialog") return openClaimDialog();
       if (action === "delete-work-plan") return deleteWorkPlan();
       if (action === "complete-work-plan") return completeWorkPlan();
@@ -5383,6 +5623,9 @@
       if (action === "split-period") return splitPeriod(button.dataset.periodId);
       if (action === "close-split-dialog") return closeSplitDialog();
       if (action === "save-split-dialog") return applySplitDialog();
+      if (action === "open-accum-dialog") return openAccumDialog();
+      if (action === "close-accum-dialog") return closeAccumDialog();
+      if (action === "save-accum-dialog") return saveAccumDialog();
       if (action === "set-split-mode") {
         const ctx = splitDialogContext();
         if (!ctx || !splitDraft) return;
@@ -5423,6 +5666,7 @@
     function handleInput(event) {
       const target = event.target;
       if (target.dataset.splitField) return updateSplitDraftField(target);
+      if (target.dataset.accumField) return refreshAccumDialogTotals();
       if (target.dataset.setting) {
         const key = target.dataset.setting;
         if (["dayHours", "controlPercent"].includes(key)) state.settings[key] = n(target.value);
@@ -5441,10 +5685,10 @@
         const view = options.includes(state.ui.manualView) ? state.ui.manualView : (options.at(-1) || "ALL");
         const plan = activeWorkPlan();
         if (plan) plan.manual = cloneManual(plan.manual);
-        state.manual[view] = state.manual[view] || { contractLaborCost: 0, costToUpdate: 0, note: "" };
-        if (plan) plan.manual[view] = plan.manual[view] || { contractLaborCost: 0, costToUpdate: 0, note: "" };
+        state.manual[view] = state.manual[view] || { initialLaborCost: 0, initialMachineCost: 0, note: "" };
+        if (plan) plan.manual[view] = plan.manual[view] || { initialLaborCost: 0, initialMachineCost: 0, note: "" };
         const targetManual = plan?.manual?.[view] || state.manual[view];
-        targetManual[target.dataset.manual] = ["contractLaborCost", "costToUpdate"].includes(target.dataset.manual) ? n(target.value) : target.value;
+        targetManual[target.dataset.manual] = ["initialLaborCost", "initialMachineCost"].includes(target.dataset.manual) ? n(target.value) : target.value;
         saveState();
         return;
       }
@@ -5766,6 +6010,17 @@
       saveState();
       renderAll();
       showToast(`เพิ่ม${workPlanLabel(plan)}แล้ว`);
+    }
+
+    function setUpdateDateToday() {
+      const plan = activeWorkPlan();
+      if (!plan) return;
+      recordHistory("ตั้งวันที่ Update เป็นวันนี้");
+      plan.updateDate = isoToday();
+      state.settings.updateDate = plan.updateDate;
+      saveState();
+      renderAll();
+      showToast(`ตั้งวันที่ Update เป็น ${thaiDateInput(plan.updateDate)} แล้ว`);
     }
 
     function openClaimDialog() {
@@ -6438,9 +6693,12 @@
       const codeW = 96 * scale;
       const nameW = 210 * scale;
       const dayW = 34 * scale;
+      const workedW = 68 * scale;
+      const absentW = 68 * scale;
       const wageW = 112 * scale;
       const leftW = codeW + nameW;
-      const tableW = leftW + data.dates.length * dayW + wageW;
+      const summaryW = workedW + absentW + wageW;
+      const tableW = leftW + data.dates.length * dayW + summaryW;
       const height = titleH + rowH * (2 + data.rows.length + 2) + pad * 2;
       const width = tableW + pad * 2;
       canvas.width = width;
@@ -6474,7 +6732,10 @@
       drawCell(ctx, x0, y, codeW, rowH * 2, "รหัส", true);
       drawCell(ctx, x0 + codeW, y, nameW, rowH * 2, "ชื่อ-สกุล", true);
       drawCell(ctx, x0 + leftW, y, data.dates.length * dayW, rowH, monthYearLabel(`${monthKey}-01`), true, "#f3f5f3");
-      drawCell(ctx, x0 + leftW + data.dates.length * dayW, y, wageW, rowH * 2, "ค่าแรงรวม", true);
+      const summaryX = x0 + leftW + data.dates.length * dayW;
+      drawCell(ctx, summaryX, y, workedW, rowH * 2, "มาทำงาน", true);
+      drawCell(ctx, summaryX + workedW, y, absentW, rowH * 2, "ขาด", true);
+      drawCell(ctx, summaryX + workedW + absentW, y, wageW, rowH * 2, "ค่าแรงรวม", true);
       y += rowH;
       data.dates.forEach((date, index) => {
         drawCell(ctx, x0 + leftW + index * dayW, y, dayW, rowH, dayNumber(date), true, isHoliday(date) ? "#c9c9c9" : "#f3f5f3");
@@ -6505,7 +6766,9 @@
           }
           drawCell(ctx, x0 + leftW + index * dayW, y, dayW, rowH, text, false, bg, color, "center", bold);
         });
-        drawCell(ctx, x0 + leftW + data.dates.length * dayW, y, wageW, rowH, row.workedCount ? money(row.monthCost, 0) : "", false, rowFill, inactive ? "#777" : "#111", "right", true);
+        drawCell(ctx, summaryX, y, workedW, rowH, row.workedCount ? money(row.workedDays, 0) : "", false, rowFill, inactive ? "#777" : "#111", "center", true);
+        drawCell(ctx, summaryX + workedW, y, absentW, rowH, row.workedCount ? money(row.absentDays, 0) : "", false, rowFill, inactive ? "#777" : "#111", "center", true);
+        drawCell(ctx, summaryX + workedW + absentW, y, wageW, rowH, row.workedCount ? money(row.monthCost, 0) : "", false, rowFill, inactive ? "#777" : "#111", "right", true);
         y += rowH;
       });
 
@@ -6513,13 +6776,17 @@
       data.dates.forEach((date, index) => {
         drawCell(ctx, x0 + leftW + index * dayW, y, dayW, rowH, data.dayWorkers.get(date)?.size || 0, false, isHoliday(date) ? "#c9c9c9" : "#f3f5f3", "#111", "center", true);
       });
-      drawCell(ctx, x0 + leftW + data.dates.length * dayW, y, wageW, rowH, "", false, "#f3f5f3");
+      drawCell(ctx, summaryX, y, workedW, rowH, "", false, "#f3f5f3");
+      drawCell(ctx, summaryX + workedW, y, absentW, rowH, "", false, "#f3f5f3");
+      drawCell(ctx, summaryX + workedW + absentW, y, wageW, rowH, "", false, "#f3f5f3");
       y += rowH;
       drawCell(ctx, x0, y, leftW, rowH, "ค่าแรงรวม", false, "#f3f5f3", "#111", "right", true);
       data.dates.forEach((date, index) => {
         drawCell(ctx, x0 + leftW + index * dayW, y, dayW, rowH, money(data.dayCosts.get(date) || 0, 0), false, isHoliday(date) ? "#c9c9c9" : "#f3f5f3", "#111", "center");
       });
-      drawCell(ctx, x0 + leftW + data.dates.length * dayW, y, wageW, rowH, money([...data.dayCosts.values()].reduce((sum, value) => sum + value, 0), 0), false, "#f3f5f3", "#111", "right", true);
+      drawCell(ctx, summaryX, y, workedW, rowH, "", false, "#f3f5f3");
+      drawCell(ctx, summaryX + workedW, y, absentW, rowH, "", false, "#f3f5f3");
+      drawCell(ctx, summaryX + workedW + absentW, y, wageW, rowH, money([...data.dayCosts.values()].reduce((sum, value) => sum + value, 0), 0), false, "#f3f5f3", "#111", "right", true);
     }
 
     function drawReport(canvas, view, scale = 1) {
@@ -6771,6 +7038,9 @@
     });
     $("#splitDialog").addEventListener("click", (event) => {
       if (event.target?.id === "splitDialog") closeSplitDialog();
+    });
+    $("#accumDialog").addEventListener("click", (event) => {
+      if (event.target?.id === "accumDialog") closeAccumDialog();
     });
 
     renderAll();
