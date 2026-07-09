@@ -22,6 +22,8 @@
       --purple: oklch(0.68 0.11 305);
       --success-soft: oklch(0.88 0.075 142);
       --info-soft: oklch(0.88 0.055 235);
+      --borrow-soft: oklch(0.9 0.055 235);
+      --borrow: oklch(0.47 0.105 235);
       --holiday: oklch(0.78 0 0);
       --holiday-dark: oklch(0.27 0 0);
       --danger: oklch(0.53 0.18 28);
@@ -1003,8 +1005,9 @@
       z-index: 10;
       background: var(--surface-2);
     }
-    .attendance-table .col-code { left: 0; width: 90px; }
-    .attendance-table .col-name { left: 90px; width: 190px; }
+    .attendance-table .col-seq { left: 0; width: 56px; text-align: center; }
+    .attendance-table .col-code { left: 56px; width: 90px; }
+    .attendance-table .col-name { left: 146px; width: 190px; }
     .attendance-table .day-col { width: 34px; }
     .attendance-table .month-head {
       height: 26px;
@@ -1025,6 +1028,12 @@
     .attendance-table .absent {
       color: var(--danger);
       font-size: 14px;
+    }
+    .attendance-table .borrowed {
+      color: var(--borrow);
+      font-size: 13px;
+      font-weight: 900;
+      background: var(--borrow-soft);
     }
     .attendance-table .holiday,
     .attendance-table .holiday .sticky {
@@ -1066,6 +1075,44 @@
       height: auto;
       background: white;
       border: 1px solid var(--line);
+    }
+    .borrow-shell {
+      display: grid;
+      gap: 12px;
+    }
+    .borrow-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 8px;
+    }
+    .borrow-building-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .borrow-building-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .borrow-building-card strong {
+      font-size: 20px;
+      color: var(--primary);
+    }
+    .borrow-bar {
+      height: 7px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+    .borrow-bar span {
+      display: block;
+      height: 100%;
+      width: var(--pct, 0%);
+      background: var(--borrow);
     }
     .item-list {
       display: grid;
@@ -1384,6 +1431,13 @@
       width: 760px;
       box-shadow: 0 18px 60px oklch(0.14 0.02 160 / 0.24);
     }
+    dialog[open] {
+      position: fixed;
+      inset: 50% auto auto 50%;
+      margin: 0;
+      transform: translate(-50%, -50%);
+      max-height: calc(100vh - 24px);
+    }
     dialog::backdrop {
       background: oklch(0.14 0.018 160 / 0.62);
     }
@@ -1597,8 +1651,8 @@
         animation: split-dialog-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
       }
       @keyframes split-dialog-in {
-        from { opacity: 0; transform: translateY(8px) scale(0.985); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
+        from { opacity: 0; transform: translate(-50%, -50%); }
+        to { opacity: 1; transform: translate(-50%, -50%); }
       }
     }
     .notice {
@@ -1666,8 +1720,9 @@
       .dashboard-hero { padding: 12px; }
       .attendance-grid { max-height: calc(100vh - 285px); }
       .attendance-table { min-width: 1180px; }
-      .attendance-table .col-code { width: 78px; }
-      .attendance-table .col-name { width: 160px; left: 78px; }
+      .attendance-table .col-seq { width: 52px; }
+      .attendance-table .col-code { width: 78px; left: 52px; }
+      .attendance-table .col-name { width: 160px; left: 130px; }
       .plan-grid { max-height: calc(100vh - 260px); }
       .work-table { min-width: 3650px; }
       .work-table .sticky {
@@ -1747,6 +1802,7 @@
         <section class="tab-panel" id="tab-periods"></section>
         <section class="tab-panel" id="tab-periodData"></section>
         <section class="tab-panel" id="tab-attendance"></section>
+        <section class="tab-panel" id="tab-borrow"></section>
         <section class="tab-panel" id="tab-workers"></section>
         <section class="tab-panel" id="tab-machines"></section>
         <section class="tab-panel" id="tab-holidays"></section>
@@ -1834,6 +1890,7 @@
       ["periods", "งวดงานทั้งหมด"],
       ["periodData", "ข้อมูลงวดงาน"],
       ["attendance", "วันมาทำงาน"],
+      ["borrow", "ยืมคนงาน"],
       ["workers", "คนงาน"],
       ["machines", "เครื่องจักร"],
       ["holidays", "วันหยุดบริษัท"],
@@ -1910,6 +1967,10 @@
           manualView: "ALL",
           reportView: "ALL",
           attendanceView: "ALL",
+          attendanceExportMode: "full",
+          borrowView: "ALL",
+          borrowMonth: "",
+          borrowDraft: {},
           periodDataBuilding: ""
         },
         buildings: [""],
@@ -1917,6 +1978,7 @@
         workers: [],
         machines: [],
         holidays: [],
+        borrowedWorkers: [],
         periods: [],
         periodTemplates: {},
         machineUsage: {}
@@ -2018,6 +2080,17 @@
       next.workers = Array.isArray(next.workers) ? next.workers : [];
       next.machines = Array.isArray(next.machines) ? next.machines : [];
       next.holidays = Array.isArray(next.holidays) ? next.holidays : [];
+      next.borrowedWorkers = Array.isArray(next.borrowedWorkers) ? next.borrowedWorkers.map((row) => ({
+        id: row.id || uid("bw"),
+        date: row.date || "",
+        workerId: row.workerId || "",
+        fromBuilding: String(row.fromBuilding || "").trim(),
+        toBuilding: String(row.toBuilding || "").trim(),
+        unit: ["full", "half", "hours"].includes(row.unit) ? row.unit : "full",
+        hours: n(row.hours || next.settings.dayHours || 9),
+        amount: n(row.amount),
+        note: String(row.note || "")
+      })).filter((row) => row.id) : [];
       next.periods = Array.isArray(next.periods) ? next.periods : [];
       next.periods.forEach((period) => {
         period.building = String(period.building || "").trim();
@@ -2094,6 +2167,10 @@
       if (!viewOptions.includes(next.ui.manualView)) next.ui.manualView = fallbackCombined;
       if (!viewOptions.includes(next.ui.reportView)) next.ui.reportView = fallbackCombined;
       if (!viewOptions.includes(next.ui.attendanceView)) next.ui.attendanceView = fallbackCombined;
+      if (!viewOptions.includes(next.ui.borrowView) && next.ui.borrowView !== "ALL") next.ui.borrowView = fallbackCombined;
+      if (!["full", "noWage"].includes(next.ui.attendanceExportMode)) next.ui.attendanceExportMode = "full";
+      next.ui.borrowDraft = next.ui.borrowDraft && typeof next.ui.borrowDraft === "object" ? next.ui.borrowDraft : {};
+      next.ui.borrowMonth = next.ui.borrowMonth || "";
       const periodDataBuildings = allBuildingsFromState(next).filter(Boolean);
       if (!periodDataBuildings.includes(next.ui.periodDataBuilding)) next.ui.periodDataBuilding = periodDataBuildings[0] || "";
       return next;
@@ -2600,6 +2677,47 @@
       return Number(worker.dailyWage || 0) * laborUnits(entry);
     }
 
+    function borrowedRows() {
+      state.borrowedWorkers = Array.isArray(state.borrowedWorkers) ? state.borrowedWorkers : [];
+      return state.borrowedWorkers;
+    }
+
+    function borrowedAmount(row) {
+      if (row?.amount !== "" && row?.amount !== null && row?.amount !== undefined && Number.isFinite(Number(row.amount))) return n(row.amount);
+      const worker = getWorker(row?.workerId);
+      if (!worker) return 0;
+      return Number(worker.dailyWage || 0) * laborUnits(row || {});
+    }
+
+    function borrowedWorkerInfo(workerId, date, ignoreId = "") {
+      if (!workerId || !date) return null;
+      return borrowedRows().find((row) => row.workerId === workerId && row.date === date && row.id !== ignoreId) || null;
+    }
+
+    function borrowedRowsForView(view, monthKey = "") {
+      const buildings = new Set(buildingsForView(view));
+      const all = view === "ALL" || !view;
+      return borrowedRows().filter((row) => {
+        if (monthKey && !String(row.date || "").startsWith(`${monthKey}-`)) return false;
+        if (all) return true;
+        return buildings.has(row.fromBuilding);
+      });
+    }
+
+    function borrowUnitLabel(row) {
+      if (row?.unit === "half") return "ครึ่งวัน";
+      if (row?.unit === "hours") return `${qty(row.hours)} ชม.`;
+      return "เต็มวัน";
+    }
+
+    function borrowedMarkLabel(mark) {
+      return String(mark || "").startsWith("borrowed:") ? String(mark).slice("borrowed:".length) : "";
+    }
+
+    function isBorrowedMark(mark) {
+      return String(mark || "").startsWith("borrowed:");
+    }
+
     function actualEntries(item, date) {
       if (!item?.id) return [];
       return ensurePlanItemData(item).actual?.[date] || [];
@@ -2977,11 +3095,14 @@
       return confirm(`${worker.code} · ${worker.name} ถูกใช้แล้วที่ ${assignedLabel(assigned)}\nต้องการย้ายมาช่องนี้แทนหรือไม่?`);
     }
 
-    function workerOption(worker, assigned, selected = false, disabled = false, extraLabel = "") {
-      const used = Boolean(assigned) || Boolean(extraLabel);
-      const suffix = assigned ? `ใช้แล้วที่ ${assignedLabel(assigned)}` : extraLabel || money(worker.dailyWage, 0);
-      const style = used ? `style="background:#d9fbe8;color:#064e3b;font-weight:800"` : "";
-      return `<option value="${worker.id}" ${selected ? "selected" : ""} ${disabled ? "disabled" : ""} ${style}>${esc(worker.code)} · ${esc(worker.name)} · ${esc(suffix)}</option>`;
+    function workerOption(worker, assigned, selected = false, disabled = false, extraLabel = "", borrowed = null) {
+      const status = borrowed ? "borrowed" : (assigned || extraLabel ? "used" : "");
+      const style = status === "borrowed"
+        ? `style="background:#dbeafe;color:#075985;font-weight:800"`
+        : status === "used"
+          ? `style="background:#d9fbe8;color:#064e3b;font-weight:800"`
+          : "";
+      return `<option value="${worker.id}" ${selected ? "selected" : ""} ${disabled ? "disabled" : ""} ${style}>${esc(worker.code)} · ${esc(worker.name)}</option>`;
     }
 
     function duplicateWorkerInDraft(workerId) {
@@ -3024,6 +3145,43 @@
       return viewLabel(view);
     }
 
+    function attendanceExportMode() {
+      return state.ui?.attendanceExportMode === "noWage" ? "noWage" : "full";
+    }
+
+    function borrowView() {
+      const options = ["ALL", ...allBuildings().filter(Boolean)];
+      return options.includes(state.ui.borrowView) ? state.ui.borrowView : "ALL";
+    }
+
+    function selectedBorrowMonth() {
+      const current = state.ui.borrowMonth || selectedAttendanceMonth();
+      const months = availableAttendanceMonths();
+      if (months.some((month) => month.key === current)) return current;
+      return months[0]?.key || "";
+    }
+
+    function borrowDraft() {
+      const draft = state.ui.borrowDraft && typeof state.ui.borrowDraft === "object" ? state.ui.borrowDraft : {};
+      const firstBuilding = allBuildings().filter(Boolean)[0] || "";
+      const firstWorker = state.workers[0]?.id || "";
+      draft.date = draft.date || planUpdateDate() || isoToday();
+      draft.fromBuilding = draft.fromBuilding || firstBuilding;
+      draft.toBuilding = draft.toBuilding || "";
+      draft.workerId = draft.workerId || firstWorker;
+      draft.unit = ["full", "half", "hours"].includes(draft.unit) ? draft.unit : "full";
+      draft.hours = n(draft.hours || state.settings.dayHours);
+      if (draft.amount === undefined || draft.amount === null || draft.amount === "") draft.amount = borrowedAmount(draft);
+      draft.note = draft.note || "";
+      state.ui.borrowDraft = draft;
+      return draft;
+    }
+
+    function refreshBorrowDraftAmount(draft = borrowDraft()) {
+      draft.amount = borrowedAmount({ ...draft, amount: "" });
+      return draft.amount;
+    }
+
     function attendanceData(view = attendanceView(), monthKey = selectedAttendanceMonth()) {
       const dates = attendanceDates(monthKey);
       const dateSet = new Set(dates);
@@ -3051,6 +3209,20 @@
             });
           });
         });
+      });
+      borrowedRowsForView(view, monthKey).forEach((row) => {
+        if (!dateSet.has(row.date)) return;
+        const worker = getWorker(row.workerId);
+        if (!worker) return;
+        const workerDays = workerDayMap.get(row.workerId) || new Map();
+        const current = workerDays.get(row.date) || { units: 0, cost: 0 };
+        current.units += laborUnits(row);
+        current.cost += borrowedAmount(row);
+        current.borrowedTo = row.toBuilding || "";
+        workerDays.set(row.date, current);
+        workerDayMap.set(row.workerId, workerDays);
+        dayWorkers.get(row.date)?.add(row.workerId);
+        dayCosts.set(row.date, (dayCosts.get(row.date) || 0) + borrowedAmount(row));
       });
       const rows = [...state.workers]
         .sort((a, b) => naturalSort(a.code, b.code) || naturalSort(a.name, b.name))
@@ -3082,6 +3254,8 @@
 
     function attendanceMark(row, date, cutoff = planUpdateDate()) {
       if (isHoliday(date)) return "holiday";
+      const day = row.days.get(date);
+      if (day?.borrowedTo) return `borrowed:${day.borrowedTo}`;
       if (row.days.has(date)) return "worked";
       if (!row.workedCount) return "inactive";
       if (date <= cutoff) return "absent";
@@ -3115,6 +3289,7 @@
       if (activeTab === "periods") renderPeriods();
       if (activeTab === "periodData") renderPeriodData();
       if (activeTab === "attendance") renderAttendance();
+      if (activeTab === "borrow") renderBorrowedWorkers();
       if (activeTab === "workers") renderWorkers();
       if (activeTab === "machines") renderMachines();
       if (activeTab === "holidays") renderHolidays();
@@ -3445,14 +3620,15 @@
       const listMode = workerListMode();
       const workerRows = state.workers.map((worker) => {
         const assigned = ignore ? workerAssignedInfo(worker.id, quick.date, ignore) : null;
+        const borrowed = borrowedWorkerInfo(worker.id, quick.date);
         const inCell = usedInCell.has(worker.id);
-        const hidden = listMode === "hide" && (assigned || inCell);
+        const hidden = listMode === "hide" && (assigned || inCell || borrowed);
         const disabled = inCell;
         const extraLabel = inCell ? "อยู่ในช่องนี้แล้ว" : "";
-        return { worker, assigned, hidden, disabled, extraLabel };
+        return { worker, assigned, borrowed, hidden, disabled, extraLabel };
       }).filter((row) => !row.hidden);
       if (!workerRows.some((row) => row.worker.id === quick.workerId)) quick.workerId = workerRows[0]?.worker.id || "";
-      const workerOptions = workerRows.map(({ worker, assigned, disabled, extraLabel }) => workerOption(worker, assigned, quick.workerId === worker.id, disabled, extraLabel)).join("");
+      const workerOptions = workerRows.map(({ worker, assigned, borrowed, disabled, extraLabel }) => workerOption(worker, assigned, quick.workerId === worker.id, disabled, extraLabel, borrowed)).join("");
       const existing = item ? actualEntries(item, quick.date).map((row) => {
         const worker = getWorker(row.workerId);
         return `<span class="pill red">${esc(worker?.code || "")} ${esc(worker?.name || "")} ${qty(laborUnits(row))} แรง</span>`;
@@ -4177,31 +4353,35 @@
       const view = attendanceView();
       const monthKey = selectedAttendanceMonth();
       state.ui.attendanceMonth = monthKey;
+      const variant = attendanceExportMode();
+      const withWage = variant !== "noWage";
       const data = attendanceData(view, monthKey);
       const el = $("#tab-attendance");
       const monthOptions = availableAttendanceMonths().map((month) => `<option value="${month.key}" ${month.key === monthKey ? "selected" : ""}>${esc(month.label)}</option>`).join("");
       const viewOptions = buildingViewOptions();
       const dayHeaders = data.dates.map((date) => `<th class="day-col ${isHoliday(date) ? "holiday" : ""}">${dayNumber(date)}</th>`).join("");
-      const workerRows = data.rows.map((row) => {
+      const workerRows = data.rows.map((row, index) => {
         const inactive = row.workedCount === 0;
         const cells = data.dates.map((date) => {
           const mark = attendanceMark(row, date, data.cutoff);
           if (mark === "holiday") return `<td class="holiday"></td>`;
           if (mark === "worked") return `<td><span class="mark worked">✓</span></td>`;
+          if (isBorrowedMark(mark)) return `<td><span class="mark borrowed">${esc(borrowedMarkLabel(mark))}</span></td>`;
           if (mark === "absent") return `<td><span class="mark absent">×</span></td>`;
           return `<td></td>`;
         }).join("");
         return `
           <tr class="${inactive ? "inactive" : ""}">
+            <td class="sticky col-seq">${index + 1}</td>
             <td class="sticky col-code">${esc(row.worker.code)}</td>
             <td class="sticky col-name">${esc(row.worker.name)}</td>
             ${cells}
             <td class="num">${row.workedCount ? money(row.workedDays, 0) : ""}</td>
             <td class="num">${row.workedCount ? money(row.absentDays, 0) : ""}</td>
-            <td class="num">${row.workedCount ? money(row.monthCost, 0) : ""}</td>
+            ${withWage ? `<td class="num">${row.workedCount ? money(row.monthCost, 0) : ""}</td>` : ""}
           </tr>
         `;
-      }).join("") || `<tr><td colspan="${data.dates.length + 5}" class="muted">ยังไม่มีรายชื่อคนงาน</td></tr>`;
+      }).join("") || `<tr><td colspan="${data.dates.length + 5 + (withWage ? 1 : 0)}" class="muted">ยังไม่มีรายชื่อคนงาน</td></tr>`;
       const countRow = data.dates.map((date) => `<td class="${isHoliday(date) ? "holiday" : ""}">${data.dayWorkers.get(date)?.size || 0}</td>`).join("");
       const costRow = data.dates.map((date) => `<td class="num ${isHoliday(date) ? "holiday" : ""}">${money(data.dayCosts.get(date) || 0, 0)}</td>`).join("");
       el.innerHTML = `
@@ -4209,6 +4389,10 @@
           <div class="attendance-toolbar">
             <div class="inline-list">
               <label><span>เดือน</span><select id="attendanceMonthSelect">${monthOptions}</select></label>
+              <label><span>รูปแบบส่งออก</span><select id="attendanceExportModeSelect">
+                <option value="full" ${variant === "full" ? "selected" : ""}>แบบเต็ม</option>
+                <option value="noWage" ${variant === "noWage" ? "selected" : ""}>ไม่แสดงค่าแรงรวม</option>
+              </select></label>
               <div class="segmented" aria-label="ตัวกรองอาคาร">
                 ${viewOptions.map((v) => `<button data-attendance-view="${esc(v)}" aria-pressed="${view === v}">${esc(attendanceViewLabel(v))}</button>`).join("")}
               </div>
@@ -4228,6 +4412,7 @@
           <div class="attendance-note">
             <span class="pill green">✓ มาทำงาน</span>
             <span class="pill danger">× ขาด</span>
+            <span class="pill" style="background:var(--borrow-soft);color:var(--borrow)">B = ถูกยืมไปอาคาร B</span>
             <span class="pill">เทา = วันหยุด / ไม่มีงานทั้งเดือน</span>
             <span>แสดงสถานะขาดถึงวันที่ Update เท่านั้น</span>
           </div>
@@ -4235,31 +4420,34 @@
             <table class="attendance-table">
               <thead>
                 <tr>
+                  <th class="sticky col-seq" rowspan="2">ลำดับ</th>
                   <th class="sticky col-code" rowspan="2">รหัส</th>
                   <th class="sticky col-name" rowspan="2">ชื่อ-สกุล</th>
                   <th class="month-head" colspan="${Math.max(1, data.dates.length)}">${esc(monthYearLabel(`${monthKey}-01`))}</th>
-                  <th rowspan="2">มาทำงาน</th>
-                  <th rowspan="2">ขาด</th>
-                  <th rowspan="2">ค่าแรงรวม</th>
+                  <th rowspan="2">✓</th>
+                  <th rowspan="2">×</th>
+                  ${withWage ? `<th rowspan="2">ค่าแรงรวม</th>` : ""}
                 </tr>
                 <tr>${dayHeaders || `<th></th>`}</tr>
               </thead>
               <tbody>
                 ${workerRows}
                 <tr class="summary-row">
-                  <td class="sticky col-code" colspan="2">จำนวนคนลงงาน</td>
+                  <td class="sticky col-seq" colspan="3">จำนวนคนลงงาน</td>
                   ${countRow}
                   <td></td>
                   <td></td>
-                  <td></td>
+                  ${withWage ? `<td></td>` : ""}
                 </tr>
-                <tr class="summary-row">
-                  <td class="sticky col-code" colspan="2">ค่าแรงรวม</td>
-                  ${costRow}
-                  <td></td>
-                  <td></td>
-                  <td class="num">${money([...data.dayCosts.values()].reduce((sum, value) => sum + value, 0), 0)}</td>
-                </tr>
+                ${withWage ? `
+                  <tr class="summary-row">
+                    <td class="sticky col-seq" colspan="3">ค่าแรงรวม</td>
+                    ${costRow}
+                    <td></td>
+                    <td></td>
+                    <td class="num">${money([...data.dayCosts.values()].reduce((sum, value) => sum + value, 0), 0)}</td>
+                  </tr>
+                ` : ""}
               </tbody>
             </table>
           </div>
@@ -4268,7 +4456,181 @@
           </div>
         </div>
       `;
-      requestAnimationFrame(() => drawAttendanceReport($("#attendanceCanvas"), view, monthKey, 1));
+      requestAnimationFrame(() => drawAttendanceReport($("#attendanceCanvas"), view, monthKey, 1, variant));
+    }
+
+    function renderBorrowedWorkers() {
+      const el = $("#tab-borrow");
+      const draft = borrowDraft();
+      const view = borrowView();
+      const monthKey = selectedBorrowMonth();
+      state.ui.borrowMonth = monthKey;
+      const monthOptions = availableAttendanceMonths().map((month) => `<option value="${month.key}" ${month.key === monthKey ? "selected" : ""}>${esc(month.label)}</option>`).join("");
+      const viewOptions = ["ALL", ...allBuildings().filter(Boolean)].map((building) => `<option value="${esc(building)}" ${view === building ? "selected" : ""}>${esc(building === "ALL" ? "รวมทุกหลัง" : buildingLabel(building))}</option>`).join("");
+      const buildingOptions = allBuildings().filter(Boolean).map((building) => `<option value="${esc(building)}" ${draft.fromBuilding === building ? "selected" : ""}>${esc(buildingLabel(building))}</option>`).join("");
+      const workerOptions = state.workers.map((worker) => `<option value="${esc(worker.id)}" ${draft.workerId === worker.id ? "selected" : ""}>${esc(worker.code)} · ${esc(worker.name)}</option>`).join("");
+      const rows = borrowedRowsForView(view, monthKey).sort((a, b) => naturalSort(a.date, b.date) || naturalSort(a.toBuilding, b.toBuilding));
+      const totalUnits = rows.reduce((sum, row) => sum + laborUnits(row), 0);
+      const totalAmount = rows.reduce((sum, row) => sum + borrowedAmount(row), 0);
+      const uniqueWorkers = new Set(rows.map((row) => row.workerId).filter(Boolean));
+      const buildingGroups = new Map();
+      rows.forEach((row) => {
+        const key = row.toBuilding || "-";
+        const group = buildingGroups.get(key) || { building: key, units: 0, amount: 0, workers: new Set(), days: new Set() };
+        group.units += laborUnits(row);
+        group.amount += borrowedAmount(row);
+        if (row.workerId) group.workers.add(row.workerId);
+        if (row.date) group.days.add(row.date);
+        buildingGroups.set(key, group);
+      });
+      const maxAmount = Math.max(1, ...[...buildingGroups.values()].map((group) => group.amount));
+      const groupCards = [...buildingGroups.values()].map((group) => `
+        <div class="borrow-building-card">
+          <div class="panel-head" style="padding:0;border:0">
+            <h3>${esc(buildingLabel(group.building))}</h3>
+            <span class="pill">${money(group.days.size, 0)} วัน</span>
+          </div>
+          <strong>${money(group.amount, 0)} บาท</strong>
+          <div class="muted">${money(group.workers.size, 0)} คน · ${qty(group.units) || "0"} แรง</div>
+          <div class="borrow-bar"><span style="--pct:${Math.max(4, group.amount / maxAmount * 100)}%"></span></div>
+        </div>
+      `).join("") || `<p class="muted">ยังไม่มีรายการยืมคนงานในเดือนนี้</p>`;
+      const historyRows = rows.map((row, index) => {
+        const worker = getWorker(row.workerId);
+        return `
+          <tr>
+            <td class="num">${index + 1}</td>
+            <td>${esc(dateLabel(row.date))}</td>
+            <td>${worker ? `${esc(worker.code)} · ${esc(worker.name)}` : "ไม่พบคนงาน"}</td>
+            <td>${esc(buildingLabel(row.fromBuilding))}</td>
+            <td><span class="pill">${esc(buildingLabel(row.toBuilding))}</span></td>
+            <td>${esc(borrowUnitLabel(row))}</td>
+            <td class="num">${money(borrowedAmount(row), 0)}</td>
+            <td>${esc(row.note || "")}</td>
+            <td><button class="danger" data-action="delete-borrowed-worker" data-borrow-id="${esc(row.id)}">ลบ</button></td>
+          </tr>
+        `;
+      }).join("") || `<tr><td colspan="9" class="muted">ยังไม่มีประวัติการยืมคนงาน</td></tr>`;
+      el.innerHTML = `
+        <div class="borrow-shell">
+          <div class="attendance-toolbar">
+            <div class="inline-list">
+              <label><span>เดือน</span><select id="borrowMonthSelect">${monthOptions}</select></label>
+              <label><span>มุมมอง</span><select id="borrowViewSelect">${viewOptions}</select></label>
+            </div>
+          </div>
+
+          <div class="borrow-summary">
+            <div class="metric"><span>ยืมไปทั้งหมด</span><strong>${money(uniqueWorkers.size, 0)} คน</strong></div>
+            <div class="metric"><span>รวมแรงงานยืม</span><strong>${qty(totalUnits) || "0"} วัน</strong></div>
+            <div class="metric"><span>ค่าแรงยืมรวม</span><strong>${money(totalAmount, 0)}</strong></div>
+            <div class="metric"><span>อาคารที่ยืม</span><strong>${money(buildingGroups.size, 0)} หลัง</strong></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>บันทึกยืมคนงาน</h2></div>
+            <div class="panel-body form-grid">
+              <label><span>วันที่</span><input type="date" data-borrow-field="date" min="${esc(planStartDate())}" max="${esc(planEndDate())}" value="${esc(draft.date)}"></label>
+              <label><span>คนงาน</span><select data-borrow-field="workerId">${workerOptions}</select></label>
+              <label><span>จากอาคาร</span><select data-borrow-field="fromBuilding">${buildingOptions}</select></label>
+              <label><span>อาคารที่ยืมไป</span><input data-borrow-field="toBuilding" value="${esc(draft.toBuilding)}" placeholder="เช่น B"></label>
+              <label><span>เวลา</span><select data-borrow-field="unit">
+                <option value="full" ${draft.unit === "full" ? "selected" : ""}>เต็มวัน</option>
+                <option value="half" ${draft.unit === "half" ? "selected" : ""}>ครึ่งวัน</option>
+                <option value="hours" ${draft.unit === "hours" ? "selected" : ""}>รายชั่วโมง</option>
+              </select></label>
+              <label><span>ชั่วโมง</span><input type="number" min="0" step="0.5" data-borrow-field="hours" value="${esc(draft.hours)}"></label>
+              <label><span>ค่าแรง</span><input type="number" min="0" step="0.01" data-borrow-field="amount" value="${esc(draft.amount)}"></label>
+              <label style="grid-column:1/-1"><span>หมายเหตุ</span><input data-borrow-field="note" value="${esc(draft.note)}" placeholder="เช่น ยืมไปช่วยงานเทคอนกรีต"></label>
+              <button class="primary" data-action="add-borrowed-worker">บันทึกยืมคนงาน</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>สรุปตามอาคารที่ยืม</h2></div>
+            <div class="panel-body">
+              <div class="borrow-building-grid">${groupCards}</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>ประวัติการยืมคนงาน</h2></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th class="num">#</th><th>วันที่</th><th>คนงาน</th><th>จากอาคาร</th><th>ไปอาคาร</th><th>เวลา</th><th class="num">ค่าแรง</th><th>หมายเหตุ</th><th></th></tr></thead>
+                <tbody>${historyRows}</tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function updateBorrowDraftField(target) {
+      const draft = borrowDraft();
+      const field = target.dataset.borrowField;
+      if (!field) return;
+      draft[field] = ["hours", "amount"].includes(field) ? n(target.value) : target.value;
+      if (["workerId", "unit"].includes(field)) {
+        if (field === "unit") {
+          if (draft.unit === "full") draft.hours = n(state.settings.dayHours);
+          if (draft.unit === "half") draft.hours = n(state.settings.dayHours) / 2;
+        }
+        refreshBorrowDraftAmount(draft);
+        saveState();
+        return renderBorrowedWorkers();
+      }
+      if (field === "hours" && draft.unit === "hours") refreshBorrowDraftAmount(draft);
+      saveState();
+    }
+
+    function addBorrowedWorker() {
+      const draft = borrowDraft();
+      const date = draft.date || "";
+      const workerId = draft.workerId || "";
+      const fromBuilding = String(draft.fromBuilding || "").trim();
+      const toBuilding = String(draft.toBuilding || "").trim().toUpperCase();
+      if (!date) return showToast("เลือกวันที่ยืมคนงานก่อน");
+      if (!workerId || !getWorker(workerId)) return showToast("เลือกคนงานก่อน");
+      if (!fromBuilding) return showToast("เลือกอาคารต้นทางก่อน");
+      if (!toBuilding) return showToast("กรอกอาคารที่ยืมไปก่อน");
+      if (workerAssignedInfo(workerId, date)) return showToast("คนงานนี้ลงงานจริงในวันเดียวกันแล้ว");
+      if (borrowedWorkerInfo(workerId, date)) return showToast("คนงานนี้ถูกยืมในวันเดียวกันแล้ว");
+      const row = {
+        id: uid("bw"),
+        date,
+        workerId,
+        fromBuilding,
+        toBuilding,
+        unit: ["full", "half", "hours"].includes(draft.unit) ? draft.unit : "full",
+        hours: n(draft.hours || state.settings.dayHours),
+        amount: n(draft.amount || borrowedAmount({ ...draft, toBuilding })),
+        note: String(draft.note || "").trim()
+      };
+      if (!row.amount) row.amount = borrowedAmount(row);
+      borrowedRows().push(row);
+      state.ui.borrowDraft = {
+        ...draft,
+        toBuilding: "",
+        note: "",
+        amount: borrowedAmount({ ...draft, amount: "" })
+      };
+      recordHistory("บันทึกยืมคนงาน");
+      saveState();
+      renderBorrowedWorkers();
+      showToast("บันทึกยืมคนงานแล้ว");
+    }
+
+    function deleteBorrowedWorker(id) {
+      if (!id) return;
+      const row = borrowedRows().find((item) => item.id === id);
+      if (!row) return;
+      if (!confirm("ลบรายการยืมคนงานนี้?")) return;
+      state.borrowedWorkers = borrowedRows().filter((item) => item.id !== id);
+      recordHistory("ลบรายการยืมคนงาน");
+      saveState();
+      renderBorrowedWorkers();
+      showToast("ลบรายการยืมคนงานแล้ว");
     }
 
     function renderBackup() {
@@ -4328,9 +4690,10 @@
       const listMode = workerListMode();
       const workerOptions = state.workers.map((worker) => {
         const assigned = workerAssignedInfo(worker.id, cellDraft.date, ignore);
+        const borrowed = borrowedWorkerInfo(worker.id, cellDraft.date);
         const inDraft = draftWorkerIds.has(worker.id);
-        if (listMode === "hide" && (assigned || inDraft)) return "";
-        return workerOption(worker, assigned, false, inDraft, inDraft ? "อยู่ในช่องนี้แล้ว" : "");
+        if (listMode === "hide" && (assigned || inDraft || borrowed)) return "";
+        return workerOption(worker, assigned, false, inDraft, inDraft ? "อยู่ในช่องนี้แล้ว" : "", borrowed);
       }).join("");
       const machineOptions = state.machines.map((machine) => `<option value="${machine.id}">${esc(machine.name)} · ${money(machine.dailyCost, 0)}</option>`).join("");
       const assignments = cellDraft.assignments.map((row, index) => {
@@ -4421,6 +4784,8 @@
         if (!row.workerId) return renderCellDialog("เลือกคนงานไม่ถูกต้อง");
         if (seen.has(row.workerId)) return renderCellDialog("คนงานซ้ำในช่องเดียวกัน");
         seen.add(row.workerId);
+        const borrowed = borrowedWorkerInfo(row.workerId, cellDraft.date);
+        if (borrowed) return renderCellDialog(`คนงานนี้ถูกยืมไปหลัง ${borrowed.toBuilding || "-"} แล้ว`);
         const assigned = workerAssignedInfo(row.workerId, cellDraft.date, cellDraft);
         if (assigned) {
           const worker = getWorker(row.workerId);
@@ -4462,6 +4827,8 @@
       const unit = $("#draftWorkerUnit").value;
       const hours = unit === "full" ? n(state.settings.dayHours) : unit === "half" ? n(state.settings.dayHours) / 2 : n($("#draftWorkerHours").value);
       if (!workerId) return;
+      const borrowed = borrowedWorkerInfo(workerId, cellDraft.date);
+      if (borrowed) return renderCellDialog(`คนงานนี้ถูกยืมไปหลัง ${borrowed.toBuilding || "-"} แล้ว`);
       const assigned = workerAssignedInfo(workerId, cellDraft.date, cellDraft);
       let transferFrom = "";
       if (assigned) {
@@ -4504,6 +4871,8 @@
       if (!workerId) return showToast("เลือกคนงานก่อน");
       quick.workerId = workerId;
       const ignore = { periodId: period.id, itemId: item.id, date: quick.date };
+      const borrowed = borrowedWorkerInfo(workerId, quick.date);
+      if (borrowed) return showToast(`คนงานนี้ถูกยืมไปหลัง ${borrowed.toBuilding || "-"} แล้ว`);
       const assigned = workerAssignedInfo(workerId, quick.date, ignore);
       if (assigned) {
         const worker = getWorker(workerId);
@@ -4788,7 +5157,10 @@
     }
 
     function canPasteActual(ref, rows) {
-      return !rows.some((row) => workerAssignedInfo(row.workerId, ref.date, { periodId: ref.periodId, itemId: ref.itemId, date: ref.date }));
+      return !rows.some((row) =>
+        workerAssignedInfo(row.workerId, ref.date, { periodId: ref.periodId, itemId: ref.itemId, date: ref.date })
+        || borrowedWorkerInfo(row.workerId, ref.date)
+      );
     }
 
     function applyCellPartSnapshot(ref, snapshot) {
@@ -4939,7 +5311,10 @@
       let copied = 0;
       recordHistory(`ลากคัดลอก ${fillModeLabel(mode)}`);
       targetDates.forEach((date) => {
-        const blocked = parts.actual && sourceActual.find((row) => workerAssignedInfo(row.workerId, date, { periodId: period.id, itemId: item.id, date }));
+        const blocked = parts.actual && sourceActual.find((row) =>
+          workerAssignedInfo(row.workerId, date, { periodId: period.id, itemId: item.id, date })
+          || borrowedWorkerInfo(row.workerId, date)
+        );
         if (blocked) {
           conflicts.push(date);
           return;
@@ -5661,12 +6036,15 @@
       if (action === "download-report") return downloadReport();
       if (action === "download-attendance-png") return downloadAttendancePng();
       if (action === "download-attendance-pdf") return downloadAttendancePdf();
+      if (action === "add-borrowed-worker") return addBorrowedWorker();
+      if (action === "delete-borrowed-worker") return deleteBorrowedWorker(button.dataset.borrowId);
     }
 
     function handleInput(event) {
       const target = event.target;
       if (target.dataset.splitField) return updateSplitDraftField(target);
       if (target.dataset.accumField) return refreshAccumDialogTotals();
+      if (target.dataset.borrowField) return updateBorrowDraftField(target);
       if (target.dataset.setting) {
         const key = target.dataset.setting;
         if (["dayHours", "controlPercent"].includes(key)) state.settings[key] = n(target.value);
@@ -5779,6 +6157,7 @@
     function handleChange(event) {
       const target = event.target;
       if (target.id === "mobileNav") return setActiveTab(target.value);
+      if (target.dataset.borrowField) return updateBorrowDraftField(target);
       if (target.id === "manualViewSelect") {
         state.ui.manualView = target.value;
         saveState();
@@ -5818,6 +6197,21 @@
         state.ui.attendanceMonth = target.value;
         saveState();
         return renderAttendance();
+      }
+      if (target.id === "attendanceExportModeSelect") {
+        state.ui.attendanceExportMode = target.value;
+        saveState();
+        return renderAttendance();
+      }
+      if (target.id === "borrowMonthSelect") {
+        state.ui.borrowMonth = target.value;
+        saveState();
+        return renderBorrowedWorkers();
+      }
+      if (target.id === "borrowViewSelect") {
+        state.ui.borrowView = target.value;
+        saveState();
+        return renderBorrowedWorkers();
       }
       if (target.id === "fillModeSelect") {
         state.ui.fillMode = target.value;
@@ -6595,18 +6989,20 @@
       a.remove();
     }
 
-    function attendanceFilename(ext) {
+    function attendanceFilename(ext, variant = attendanceExportMode()) {
       const now = new Date();
       const stamp = `${localISODate(now)}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
-      return `tman-attendance-${attendanceView()}-${selectedAttendanceMonth()}-${stamp}.${ext}`;
+      const suffix = variant === "noWage" ? "-no-wage" : "";
+      return `tman-attendance-${attendanceView()}-${selectedAttendanceMonth()}${suffix}-${stamp}.${ext}`;
     }
 
     function downloadAttendancePng() {
       const canvas = document.createElement("canvas");
-      drawAttendanceReport(canvas, attendanceView(), selectedAttendanceMonth(), 2);
+      const variant = attendanceExportMode();
+      drawAttendanceReport(canvas, attendanceView(), selectedAttendanceMonth(), 2, variant);
       const a = document.createElement("a");
       a.href = canvas.toDataURL("image/png");
-      a.download = attendanceFilename("png");
+      a.download = attendanceFilename("png", variant);
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -6614,12 +7010,13 @@
 
     function downloadAttendancePdf() {
       const canvas = document.createElement("canvas");
-      drawAttendanceReport(canvas, attendanceView(), selectedAttendanceMonth(), 2);
+      const variant = attendanceExportMode();
+      drawAttendanceReport(canvas, attendanceView(), selectedAttendanceMonth(), 2, variant);
       const blob = canvasToPdfBlob(canvas);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = attendanceFilename("pdf");
+      a.download = attendanceFilename("pdf", variant);
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -6684,22 +7081,25 @@
       return new Blob([pdf], { type: "application/pdf" });
     }
 
-    function drawAttendanceReport(canvas, view = attendanceView(), monthKey = selectedAttendanceMonth(), scale = 1) {
+    function drawAttendanceReport(canvas, view = attendanceView(), monthKey = selectedAttendanceMonth(), scale = 1, variant = attendanceExportMode()) {
       if (!canvas) return;
+      const withWage = variant !== "noWage";
       const data = attendanceData(view, monthKey);
       const rowH = 24 * scale;
       const titleH = 82 * scale;
       const pad = 14 * scale;
+      const seqW = 56 * scale;
       const codeW = 96 * scale;
       const nameW = 210 * scale;
       const dayW = 34 * scale;
       const workedW = 68 * scale;
       const absentW = 68 * scale;
       const wageW = 112 * scale;
-      const leftW = codeW + nameW;
-      const summaryW = workedW + absentW + wageW;
+      const leftW = seqW + codeW + nameW;
+      const summaryW = workedW + absentW + (withWage ? wageW : 0);
       const tableW = leftW + data.dates.length * dayW + summaryW;
-      const height = titleH + rowH * (2 + data.rows.length + 2) + pad * 2;
+      const footerRows = 1 + (withWage ? 1 : 0);
+      const height = titleH + rowH * (2 + data.rows.length + footerRows) + pad * 2;
       const width = tableW + pad * 2;
       canvas.width = width;
       canvas.height = height;
@@ -6725,28 +7125,32 @@
       ctx.fillText("✓ มาทำงาน", x0, legendY);
       ctx.fillStyle = "#b3261e";
       ctx.fillText("× ขาด", x0 + 92 * scale, legendY);
+      ctx.fillStyle = "#075985";
+      ctx.fillText("B = ถูกยืมไปอาคาร B", x0 + 154 * scale, legendY);
       ctx.fillStyle = "#555";
-      ctx.fillText("สีเทา = วันหยุดบริษัท / คนงานไม่มีงานทั้งเดือน", x0 + 166 * scale, legendY);
+      ctx.fillText("สีเทา = วันหยุดบริษัท / คนงานไม่มีงานทั้งเดือน", x0 + 300 * scale, legendY);
       y += titleH;
 
-      drawCell(ctx, x0, y, codeW, rowH * 2, "รหัส", true);
-      drawCell(ctx, x0 + codeW, y, nameW, rowH * 2, "ชื่อ-สกุล", true);
+      drawCell(ctx, x0, y, seqW, rowH * 2, "ลำดับ", true);
+      drawCell(ctx, x0 + seqW, y, codeW, rowH * 2, "รหัส", true);
+      drawCell(ctx, x0 + seqW + codeW, y, nameW, rowH * 2, "ชื่อ-สกุล", true);
       drawCell(ctx, x0 + leftW, y, data.dates.length * dayW, rowH, monthYearLabel(`${monthKey}-01`), true, "#f3f5f3");
       const summaryX = x0 + leftW + data.dates.length * dayW;
-      drawCell(ctx, summaryX, y, workedW, rowH * 2, "มาทำงาน", true);
-      drawCell(ctx, summaryX + workedW, y, absentW, rowH * 2, "ขาด", true);
-      drawCell(ctx, summaryX + workedW + absentW, y, wageW, rowH * 2, "ค่าแรงรวม", true);
+      drawCell(ctx, summaryX, y, workedW, rowH * 2, "✓", true);
+      drawCell(ctx, summaryX + workedW, y, absentW, rowH * 2, "×", true);
+      if (withWage) drawCell(ctx, summaryX + workedW + absentW, y, wageW, rowH * 2, "ค่าแรงรวม", true);
       y += rowH;
       data.dates.forEach((date, index) => {
         drawCell(ctx, x0 + leftW + index * dayW, y, dayW, rowH, dayNumber(date), true, isHoliday(date) ? "#c9c9c9" : "#f3f5f3");
       });
       y += rowH;
 
-      data.rows.forEach((row) => {
+      data.rows.forEach((row, index) => {
         const inactive = row.workedCount === 0;
         const rowFill = inactive ? "#eef0ee" : "#ffffff";
-        drawCell(ctx, x0, y, codeW, rowH, row.worker.code, false, rowFill, inactive ? "#777" : "#111", "center", true);
-        drawCell(ctx, x0 + codeW, y, nameW, rowH, row.worker.name, false, rowFill, inactive ? "#777" : "#111", "left");
+        drawCell(ctx, x0, y, seqW, rowH, index + 1, false, rowFill, inactive ? "#777" : "#111", "center", true);
+        drawCell(ctx, x0 + seqW, y, codeW, rowH, row.worker.code, false, rowFill, inactive ? "#777" : "#111", "center", true);
+        drawCell(ctx, x0 + seqW + codeW, y, nameW, rowH, row.worker.name, false, rowFill, inactive ? "#777" : "#111", "left");
         data.dates.forEach((date, index) => {
           const mark = attendanceMark(row, date, data.cutoff);
           let text = "";
@@ -6759,6 +7163,12 @@
             color = "#00543a";
             bold = true;
           }
+          if (isBorrowedMark(mark)) {
+            text = borrowedMarkLabel(mark);
+            bg = "#dbeafe";
+            color = "#075985";
+            bold = true;
+          }
           if (mark === "absent") {
             text = "×";
             color = "#b3261e";
@@ -6768,7 +7178,7 @@
         });
         drawCell(ctx, summaryX, y, workedW, rowH, row.workedCount ? money(row.workedDays, 0) : "", false, rowFill, inactive ? "#777" : "#111", "center", true);
         drawCell(ctx, summaryX + workedW, y, absentW, rowH, row.workedCount ? money(row.absentDays, 0) : "", false, rowFill, inactive ? "#777" : "#111", "center", true);
-        drawCell(ctx, summaryX + workedW + absentW, y, wageW, rowH, row.workedCount ? money(row.monthCost, 0) : "", false, rowFill, inactive ? "#777" : "#111", "right", true);
+        if (withWage) drawCell(ctx, summaryX + workedW + absentW, y, wageW, rowH, row.workedCount ? money(row.monthCost, 0) : "", false, rowFill, inactive ? "#777" : "#111", "right", true);
         y += rowH;
       });
 
@@ -6778,15 +7188,17 @@
       });
       drawCell(ctx, summaryX, y, workedW, rowH, "", false, "#f3f5f3");
       drawCell(ctx, summaryX + workedW, y, absentW, rowH, "", false, "#f3f5f3");
-      drawCell(ctx, summaryX + workedW + absentW, y, wageW, rowH, "", false, "#f3f5f3");
+      if (withWage) drawCell(ctx, summaryX + workedW + absentW, y, wageW, rowH, "", false, "#f3f5f3");
       y += rowH;
-      drawCell(ctx, x0, y, leftW, rowH, "ค่าแรงรวม", false, "#f3f5f3", "#111", "right", true);
-      data.dates.forEach((date, index) => {
-        drawCell(ctx, x0 + leftW + index * dayW, y, dayW, rowH, money(data.dayCosts.get(date) || 0, 0), false, isHoliday(date) ? "#c9c9c9" : "#f3f5f3", "#111", "center");
-      });
-      drawCell(ctx, summaryX, y, workedW, rowH, "", false, "#f3f5f3");
-      drawCell(ctx, summaryX + workedW, y, absentW, rowH, "", false, "#f3f5f3");
-      drawCell(ctx, summaryX + workedW + absentW, y, wageW, rowH, money([...data.dayCosts.values()].reduce((sum, value) => sum + value, 0), 0), false, "#f3f5f3", "#111", "right", true);
+      if (withWage) {
+        drawCell(ctx, x0, y, leftW, rowH, "ค่าแรงรวม", false, "#f3f5f3", "#111", "right", true);
+        data.dates.forEach((date, index) => {
+          drawCell(ctx, x0 + leftW + index * dayW, y, dayW, rowH, money(data.dayCosts.get(date) || 0, 0), false, isHoliday(date) ? "#c9c9c9" : "#f3f5f3", "#111", "center");
+        });
+        drawCell(ctx, summaryX, y, workedW, rowH, "", false, "#f3f5f3");
+        drawCell(ctx, summaryX + workedW, y, absentW, rowH, "", false, "#f3f5f3");
+        drawCell(ctx, summaryX + workedW + absentW, y, wageW, rowH, money([...data.dayCosts.values()].reduce((sum, value) => sum + value, 0), 0), false, "#f3f5f3", "#111", "right", true);
+      }
     }
 
     function drawReport(canvas, view, scale = 1) {
