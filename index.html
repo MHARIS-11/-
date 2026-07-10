@@ -2105,6 +2105,7 @@
       if (!next.buildings.length) next.buildings = [""];
       next.periods.forEach((period) => {
         period.items = Array.isArray(period.items) ? period.items : [];
+        period.customTitle = String(period.customTitle || "").trim();
         period.items.forEach((item) => {
           item.plan = item.plan || {};
           item.actual = item.actual || {};
@@ -2502,8 +2503,12 @@
       return `งวดงานที่ ${period?.no || ""}`.trim();
     }
 
+    function periodUserTitle(period) {
+      return String(period?.customTitle || "").trim();
+    }
+
     function periodSearchText(period) {
-      return [period.building, periodMainNo(period), period.no, period.title, period.description, period.status].join(" ").toLowerCase();
+      return [period.building, periodMainNo(period), period.no, periodUserTitle(period), period.title, period.description, period.status].join(" ").toLowerCase();
     }
 
     function periodFilters() {
@@ -3860,7 +3865,7 @@
                   <tr>
                     <th>ใช้</th>
                     <th>งวดงาน</th>
-                    <th>งวดย่อย</th>
+                    <th>ชื่องวด</th>
                     <th class="num">มูลค่างวด</th>
                     <th class="num">ค่าแรงงวด</th>
                     <th>สถานะ</th>
@@ -3886,7 +3891,7 @@
         <tr class="period-main-row period-overview-row" data-period-main-row="${esc(group.building)}|${esc(group.mainNo)}">
           <td></td>
           <td><span class="period-no">${esc(group.mainNo)}</span></td>
-          <td>${summary.count} งวดย่อย</td>
+          <td></td>
           <td class="num">${money(summary.mainValue, 0)}</td>
           <td class="num">${money(summary.laborValue, 0)}</td>
           <td><span class="pill ${over ? "red" : "green"}">${over ? "มูลค่าย่อยเกิน" : `ใช้ ${money(percent, 1)}%`}</span></td>
@@ -3909,7 +3914,7 @@
             </label>
           </td>
           <td><span class="period-no">${esc(periodMainNo(period))}</span></td>
-          <td><strong>${esc(periodDisplayTitle(period))}</strong></td>
+          <td><strong>${esc(periodUserTitle(period))}</strong></td>
           <td class="num">${money(value, 0)}</td>
           <td class="num">${money(laborValue, 0)}</td>
           <td><span class="pill ${statusClass}">${esc(period.status || "รอทำ")}</span> <span class="period-mini-note">${money(percent, 1)}%</span></td>
@@ -3922,7 +3927,7 @@
       const laborValue = periodLaborValue(period);
       const statusClass = periodStatusClass(period.status);
       const subPercent = n(period.mainValue) ? n(period.periodValue) / n(period.mainValue) * 100 : 0;
-      const indent = Math.min(48, Math.max(0, periodNoDepth(period) - 1) * 18);
+      const indent = Math.min(54, Math.max(1, periodNoDepth(period)) * 18);
       return `
         <tr class="period-sub-row ${periodEnabled(period) ? "is-selected" : "is-disabled"}" data-period-row="${period.id}">
           <td>
@@ -3931,10 +3936,7 @@
             </label>
           </td>
           <td class="period-indent" style="padding-left:${indent}px"><span class="period-no">${esc(period.no)}</span></td>
-          <td>
-            <strong>${esc(periodDisplayTitle(period))}</strong>
-            <span class="period-mini-note"> · ${money(subPercent, 1)}% ของงวดหลัก</span>
-          </td>
+          <td><strong>${esc(periodUserTitle(period))}</strong></td>
           <td class="num">${money(period.periodValue, 0)}</td>
           <td class="num">${money(laborValue, 0)}</td>
           <td><span class="pill ${statusClass}">${esc(period.status || "รอทำ")}</span></td>
@@ -4046,6 +4048,7 @@
                     <tr><td>อาคาร</td><td><input list="buildingList" data-period-field="building" data-period-id="${period.id}" value="${esc(period.building)}" placeholder="เช่น G"></td></tr>
                     <tr><td>งวดหลัก</td><td><input data-period-field="mainNo" data-period-id="${period.id}" value="${esc(periodMainNo(period))}"></td></tr>
                     <tr><td>งวดย่อย</td><td><input data-period-field="no" data-period-id="${period.id}" value="${esc(period.no)}"></td></tr>
+                    <tr><td>ชื่องวด</td><td><input data-period-field="customTitle" data-period-id="${period.id}" value="${esc(periodUserTitle(period))}" placeholder="ไม่บังคับกรอก"></td></tr>
                     <tr><td>มูลค่างวดหลัก</td><td><input type="number" step="0.01" data-period-field="mainValue" data-period-id="${period.id}" value="${esc(period.mainValue)}"></td></tr>
                     <tr><td>${valueLabel}</td><td><input type="number" step="0.01" data-period-field="periodValue" data-period-id="${period.id}" value="${esc(period.periodValue)}"></td></tr>
                     <tr><td>%</td><td><input class="num" type="number" step="0.01" data-period-field="periodPercent" data-period-id="${period.id}" value="${esc(money(subPercent, 2).replace(/,/g, ""))}"></td></tr>
@@ -4127,6 +4130,7 @@
               ${templateDatalist}
               <label><span>อาคาร</span><input id="newPeriodBuilding" list="buildingList" value="${esc(building)}" placeholder="เช่น G"></label>
               <label><span>งวดหลัก</span><input id="newPeriodMainNo" list="periodTemplateList" value="${esc(draft.mainNo || "")}" placeholder="เช่น 5"></label>
+              <label><span>ชื่องวด</span><input id="newPeriodTitle" value="${esc(draft.customTitle || "")}" placeholder="ไม่บังคับกรอก"></label>
               <label><span>มูลค่างวดหลัก</span><input id="newPeriodMainValue" value="${esc(draft.mainValue || "")}" type="number" min="0" step="0.01"></label>
               <label><span>สถานะ</span><select id="newPeriodStatus">${periodStatusOptions(draft.status || "รอทำ")}</select></label>
               <details class="sub-period-disclosure" ${showSubPeriod ? "open" : ""}>
@@ -5496,6 +5500,7 @@
       return {
         building: $("#newPeriodBuilding")?.value.trim() || "",
         mainNo: $("#newPeriodMainNo")?.value.trim() || "",
+        customTitle: $("#newPeriodTitle")?.value.trim() || "",
         mainValue: $("#newPeriodMainValue")?.value || "",
         no: $("#newPeriodNo")?.value.trim() || "",
         periodValue: $("#newPeriodValue")?.value || "",
@@ -5834,6 +5839,7 @@
         recordHistory("ซอยงวดงานครั้งแรก");
         period.no = `${mainNo}.1`;
         period.title = periodDisplayTitle(period);
+        period.customTitle = periodUserTitle(period);
         addPeriodValueHistory(period, "periodValue", period.periodValue, result.firstValue, `ซอยงวดเป็น ${result.firstNo}`);
         period.mainValue = mainValue;
         period.periodValue = result.firstValue;
@@ -5845,6 +5851,7 @@
           mainValue,
           no: result.secondNo,
           title: periodDisplayTitle({ no: result.secondNo }),
+          customTitle: "",
           description: "",
           status: "รอทำ",
           periodValue: result.secondValue,
@@ -5876,6 +5883,7 @@
         mainValue,
         no: result.newNo,
         title: periodDisplayTitle({ no: result.newNo }),
+        customTitle: "",
         status: "รอทำ",
         description: "",
         periodValue: result.newValue,
@@ -6328,7 +6336,8 @@
       if (!periodValue && !periodPercent && mainValue && no === mainNo) periodValue = mainValue;
       if (!periodPercent && periodValue && mainValue) periodPercent = periodValue / mainValue * 100;
       if (!mainValue) mainValue = periodValue;
-      const title = $("#newPeriodTitle")?.value.trim() || `งวดงานที่ ${no}`;
+      const customTitle = $("#newPeriodTitle")?.value.trim() || "";
+      const title = periodDisplayTitle({ no });
       if (!building) return showToast("กรอกชื่ออาคารก่อน");
       if (!no) return showToast("กรอกเลขงวดก่อน");
       if (!state.buildings.includes(building)) state.buildings.push(building);
@@ -6350,7 +6359,7 @@
         actual: {}
       })) : [];
       const description = $("#newPeriodDescription").value.trim() || template?.description || "";
-      const newPeriod = { id: uid("p"), building, mainNo, mainValue, no, title, description, status: $("#newPeriodStatus").value.trim(), periodValue, periodPercent, enabled: true, items: templateItems };
+      const newPeriod = { id: uid("p"), building, mainNo, mainValue, no, title, customTitle, description, status: $("#newPeriodStatus").value.trim(), periodValue, periodPercent, enabled: true, items: templateItems };
       state.periods.push(newPeriod);
       setPeriodEnabled(newPeriod.id, true);
       state.ui.editingPeriodId = newPeriod.id;
