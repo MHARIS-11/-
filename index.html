@@ -1025,6 +1025,11 @@
       color: var(--primary);
       font-size: 15px;
     }
+    .attendance-table .partial {
+      color: #b45309;
+      font-size: 13px;
+      background: #fff7ed;
+    }
     .attendance-table .absent {
       color: var(--danger);
       font-size: 14px;
@@ -2725,6 +2730,23 @@
       return String(mark || "").startsWith("borrowed:");
     }
 
+    function isHourlyMark(mark) {
+      return String(mark || "").startsWith("hours:");
+    }
+
+    function hourlyMarkLabel(mark) {
+      return String(mark || "").slice("hours:".length);
+    }
+
+    function attendanceMarkMeta(mark) {
+      if (mark === "worked") return { text: "✓", className: "worked", color: "#00543a", bg: "" };
+      if (mark === "half") return { text: "½", className: "partial", color: "#b45309", bg: "#fff7ed" };
+      if (isHourlyMark(mark)) return { text: `${hourlyMarkLabel(mark)}h`, className: "partial", color: "#b45309", bg: "#fff7ed" };
+      if (isBorrowedMark(mark)) return { text: borrowedMarkLabel(mark), className: "borrowed", color: "#075985", bg: "#dbeafe" };
+      if (mark === "absent") return { text: "×", className: "absent", color: "#b3261e", bg: "" };
+      return { text: "", className: "", color: "#111", bg: "" };
+    }
+
     function actualEntries(item, date) {
       if (!item?.id) return [];
       return ensurePlanItemData(item).actual?.[date] || [];
@@ -3206,9 +3228,11 @@
               const worker = getWorker(entry.workerId);
               if (!worker) return;
               const workerDays = workerDayMap.get(entry.workerId) || new Map();
-              const current = workerDays.get(date) || { units: 0, cost: 0 };
+              const current = workerDays.get(date) || { units: 0, cost: 0, hasHalf: false, hasHours: false };
               current.units += laborUnits(entry);
               current.cost += laborAmount(entry);
+              current.hasHalf = current.hasHalf || entry.unit === "half";
+              current.hasHours = current.hasHours || entry.unit === "hours";
               workerDays.set(date, current);
               workerDayMap.set(entry.workerId, workerDays);
               dayWorkers.get(date)?.add(entry.workerId);
@@ -3222,9 +3246,11 @@
         const worker = getWorker(row.workerId);
         if (!worker) return;
         const workerDays = workerDayMap.get(row.workerId) || new Map();
-        const current = workerDays.get(row.date) || { units: 0, cost: 0 };
+        const current = workerDays.get(row.date) || { units: 0, cost: 0, hasHalf: false, hasHours: false };
         current.units += laborUnits(row);
         current.cost += borrowedAmount(row);
+        current.hasHalf = current.hasHalf || row.unit === "half";
+        current.hasHours = current.hasHours || row.unit === "hours";
         current.borrowedTo = row.toBuilding || "";
         workerDays.set(row.date, current);
         workerDayMap.set(row.workerId, workerDays);
@@ -3263,7 +3289,13 @@
       if (isHoliday(date)) return "holiday";
       const day = row.days.get(date);
       if (day?.borrowedTo) return `borrowed:${day.borrowedTo}`;
-      if (row.days.has(date)) return "worked";
+      if (row.days.has(date)) {
+        const units = n(day?.units);
+        if (units >= 0.999) return "worked";
+        if (!day?.hasHours && Math.abs(units - 0.5) < 0.001) return "half";
+        const hours = units * n(state.settings.dayHours || 9);
+        return `hours:${qty(hours) || "0"}`;
+      }
       if (!row.workedCount) return "inactive";
       if (date <= cutoff) return "absent";
       return "blank";
@@ -4377,9 +4409,8 @@
         const cells = data.dates.map((date) => {
           const mark = attendanceMark(row, date, data.cutoff);
           if (mark === "holiday") return `<td class="holiday"></td>`;
-          if (mark === "worked") return `<td><span class="mark worked">✓</span></td>`;
-          if (isBorrowedMark(mark)) return `<td><span class="mark borrowed">${esc(borrowedMarkLabel(mark))}</span></td>`;
-          if (mark === "absent") return `<td><span class="mark absent">×</span></td>`;
+          const meta = attendanceMarkMeta(mark);
+          if (meta.text) return `<td><span class="mark ${esc(meta.className)}">${esc(meta.text)}</span></td>`;
           return `<td></td>`;
         }).join("");
         return `
@@ -4422,7 +4453,8 @@
             <div class="metric"><span>ค่าแรงรวมเดือนนี้</span><strong>${money([...data.dayCosts.values()].reduce((sum, value) => sum + value, 0), 0)}</strong></div>
           </div>
           <div class="attendance-note">
-            <span class="pill green">✓ มาทำงาน</span>
+            <span class="pill green">✓ เต็มวัน</span>
+            <span class="pill amber">½ ครึ่งวัน / 4h รายชั่วโมง</span>
             <span class="pill danger">× ขาด</span>
             <span class="pill" style="background:var(--borrow-soft);color:var(--borrow)">B = ถูกยืมไปอาคาร B</span>
             <span class="pill">เทา = วันหยุด / ไม่มีงานทั้งเดือน</span>
@@ -7172,13 +7204,15 @@
       const legendY = y + 64 * scale;
       ctx.textAlign = "left";
       ctx.fillStyle = "#00543a";
-      ctx.fillText("✓ มาทำงาน", x0, legendY);
+      ctx.fillText("✓ เต็มวัน", x0, legendY);
+      ctx.fillStyle = "#b45309";
+      ctx.fillText("½ ครึ่งวัน / 4h รายชั่วโมง", x0 + 82 * scale, legendY);
       ctx.fillStyle = "#b3261e";
-      ctx.fillText("× ขาด", x0 + 92 * scale, legendY);
+      ctx.fillText("× ขาด", x0 + 260 * scale, legendY);
       ctx.fillStyle = "#075985";
-      ctx.fillText("B = ถูกยืมไปอาคาร B", x0 + 154 * scale, legendY);
+      ctx.fillText("B = ถูกยืมไปอาคาร B", x0 + 324 * scale, legendY);
       ctx.fillStyle = "#555";
-      ctx.fillText("สีเทา = วันหยุดบริษัท / คนงานไม่มีงานทั้งเดือน", x0 + 300 * scale, legendY);
+      ctx.fillText("สีเทา = วันหยุดบริษัท / คนงานไม่มีงานทั้งเดือน", x0 + 470 * scale, legendY);
       y += titleH;
 
       drawCell(ctx, x0, y, seqW, rowH * 2, "ลำดับ", true);
@@ -7208,21 +7242,14 @@
           let color = inactive ? "#777" : "#111";
           let bold = false;
           if (mark === "holiday") bg = "#c9c9c9";
-          if (mark === "worked") {
-            text = "✓";
-            color = "#00543a";
-            bold = true;
-          }
-          if (isBorrowedMark(mark)) {
-            text = borrowedMarkLabel(mark);
-            bg = "#dbeafe";
-            color = "#075985";
-            bold = true;
-          }
-          if (mark === "absent") {
-            text = "×";
-            color = "#b3261e";
-            bold = true;
+          if (mark !== "holiday") {
+            const meta = attendanceMarkMeta(mark);
+            if (meta.text) {
+              text = meta.text;
+              bg = meta.bg || bg;
+              color = meta.color;
+              bold = true;
+            }
           }
           drawCell(ctx, x0 + leftW + index * dayW, y, dayW, rowH, text, false, bg, color, "center", bold);
         });
