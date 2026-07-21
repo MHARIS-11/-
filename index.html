@@ -1931,7 +1931,9 @@
     const AUTH_STORAGE_KEY = `${STORAGE_KEY}.auth`;
     const SYNC_BACKUP_PREFIX = `${STORAGE_KEY}.syncBackup.`;
     const SYNC_DEVICE_KEY = `${STORAGE_KEY}.deviceId`;
+    const SYNC_DIRTY_KEY = `${STORAGE_KEY}.syncDirtyAt`;
     const AUTO_SYNC_DELAY_MS = 2500;
+    const AUTO_PULL_INTERVAL_MS = 15000;
     const tabs = [
       ["dashboard", "สรุปโครงการ"],
       ["plan", "แผนงวดงาน"],
@@ -1978,8 +1980,10 @@
     let toastTimer = null;
     let firebaseAuthState = null;
     let autoSyncTimer = null;
+    let autoPullTimer = null;
     let syncBusy = false;
     let suppressAutoSync = false;
+    let localDirtyAt = Number(localStorage.getItem(SYNC_DIRTY_KEY) || 0);
 
     function makePlan() { return {}; }
     function makeActual() { return {}; }
@@ -2058,6 +2062,16 @@
         localStorage.setItem(SYNC_DEVICE_KEY, id);
       }
       return id;
+    }
+
+    function markLocalDirty() {
+      localDirtyAt = Date.now();
+      localStorage.setItem(SYNC_DIRTY_KEY, String(localDirtyAt));
+    }
+
+    function clearLocalDirty() {
+      localDirtyAt = 0;
+      localStorage.removeItem(SYNC_DIRTY_KEY);
     }
 
     function normalizeSyncSettings(sync = {}) {
@@ -2204,6 +2218,7 @@
         renderSync();
         if (state.sync?.autoSync) {
           const cloud = await checkCloudSync({ silent: true });
+          scheduleAutoPull("login");
           if (cloud?.data && n(cloud.revision) > n(state.sync.lastRevision)) {
             showToast("Cloud มีข้อมูลใหม่กว่า กดดึงข้อมูลเมื่อพร้อม");
           }
@@ -2217,6 +2232,7 @@
     }
 
     function logoutFirebaseUser() {
+      stopAutoPullLoop();
       clearAuthState();
       setSyncStatus("ออกจากระบบแล้ว");
       showToast("ออกจากระบบ Firebase แล้ว");
@@ -2225,6 +2241,25 @@
 
     function shouldAutoSync() {
       return Boolean(state?.sync?.autoSync && authReady() && !syncBusy && !suppressAutoSync);
+    }
+
+    function stopAutoPullLoop() {
+      clearTimeout(autoPullTimer);
+      autoPullTimer = null;
+    }
+
+    function shouldAutoPull() {
+      return Boolean(state?.sync?.autoSync && authReady() && !syncBusy && !suppressAutoSync);
+    }
+
+    function scheduleAutoPull(reason = "") {
+      stopAutoPullLoop();
+      if (!shouldAutoPull()) return;
+      autoPullTimer = setTimeout(async () => {
+        autoPullTimer = null;
+        if (shouldAutoPull()) await autoPullCloudSync({ reason });
+        scheduleAutoPull("loop");
+      }, AUTO_PULL_INTERVAL_MS);
     }
 
     function scheduleAutoSync(reason = "") {
@@ -2440,7 +2475,10 @@
 
     function saveState(options = {}) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      if (!options.skipAutoSync) scheduleAutoSync("state-save");
+      if (!options.skipAutoSync) {
+        markLocalDirty();
+        scheduleAutoSync("state-save");
+      }
     }
 
     function stateSnapshot() {
@@ -5081,6 +5119,59 @@
       }
     }
 
+    async function autoPullCloudSync(options = {}) {
+      if (!shouldAutoPull()) return;
+      if (localDirtyAt) {
+        setSyncStatus("Auto Sync รอส่งข้อมูลเครื่องนี้ก่อน");
+        return;
+      }
+      syncBusy = true;
+      try {
+        setSyncStatus("Auto Sync กำลังตรวจ Cloud");
+        const cloud = await fetchCloudPayload();
+        const cloudRevision = n(cloud?.revision);
+        const localRevision = n(state.sync?.lastRevision);
+        state.sync.lastCloudUpdatedAt = cloud?.updatedAt || "";
+        if (!cloud?.data || !cloudRevision) {
+          setSyncStatus("Auto Sync เปิดอยู่");
+          return;
+        }
+        if (cloudRevision <= localRevision) {
+          setSyncStatus("ข้อมูลตรงกับ Cloud");
+          return;
+        }
+        if (cloud.updatedBy && cloud.updatedBy === syncDeviceLabel()) {
+          state.sync.lastRevision = cloudRevision;
+          state.sync.lastSyncedAt = cloud.updatedAt || new Date().toISOString();
+          setSyncStatus("ข้อมูลตรงกับ Cloud");
+          return;
+        }
+        const sync = normalizeSyncSettings(state.sync);
+        const backupStamp = saveSyncBackup("before-auto-pull-cloud");
+        const next = normalizeState(cloud.data);
+        next.sync = {
+          ...sync,
+          lastRevision: cloudRevision,
+          lastCloudUpdatedAt: cloud.updatedAt || "",
+          lastSyncedAt: new Date().toISOString(),
+          status: "ดึงจาก Cloud อัตโนมัติแล้ว",
+          error: ""
+        };
+        state = normalizeState(next);
+        clearLocalDirty();
+        undoStack = [];
+        redoStack = [];
+        saveState({ skipAutoSync: true });
+        renderAll();
+        showToast(`ดึงข้อมูลจาก Cloud อัตโนมัติแล้ว สำรองเดิมไว้ ${backupStamp}`);
+      } catch (error) {
+        console.error(error);
+        setSyncStatus("Auto Sync ผิดพลาด", error.message || "ดึงข้อมูลอัตโนมัติไม่สำเร็จ");
+      } finally {
+        syncBusy = false;
+      }
+    }
+
     async function pushCloudSync(options = {}) {
       if (syncBusy) return;
       syncBusy = true;
@@ -5114,8 +5205,10 @@
         state.sync.lastRevision = payload.revision;
         state.sync.lastCloudUpdatedAt = payload.updatedAt;
         state.sync.lastSyncedAt = payload.updatedAt;
+        clearLocalDirty();
         setSyncStatus("ซิงค์สำเร็จ");
         showToast(`ส่งขึ้น Cloud แล้ว revision ${payload.revision}`);
+        scheduleAutoPull("after-push");
       } catch (error) {
         console.error(error);
         setSyncStatus("ซิงค์ผิดพลาด", error.message || "ส่งขึ้น Cloud ไม่สำเร็จ");
@@ -5152,11 +5245,13 @@
           error: ""
         };
         state = normalizeState(next);
+        clearLocalDirty();
         undoStack = [];
         redoStack = [];
         saveState({ skipAutoSync: true });
         renderAll();
         showToast(`ดึงข้อมูลจาก Cloud แล้ว สำรองเดิมไว้ ${backupStamp}`);
+        scheduleAutoPull("after-pull");
       } catch (error) {
         console.error(error);
         setSyncStatus("ซิงค์ผิดพลาด", error.message || "ดึงจาก Cloud ไม่สำเร็จ");
@@ -6714,7 +6809,12 @@
         state.sync.status = target.checked ? "Auto Sync เปิดอยู่" : "พร้อมซิงค์";
         state.sync.error = "";
         saveState({ skipAutoSync: true });
-        if (target.checked) scheduleAutoSync("auto-toggle");
+        if (target.checked) {
+          scheduleAutoSync("auto-toggle");
+          scheduleAutoPull("auto-toggle");
+        } else {
+          stopAutoPullLoop();
+        }
         renderSync();
         return;
       }
@@ -8158,6 +8258,8 @@
     });
 
     renderAll();
+    if (localDirtyAt) scheduleAutoSync("init-dirty");
+    scheduleAutoPull("init");
   </script>
 </body>
 </html>
