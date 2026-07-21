@@ -1695,6 +1695,33 @@
       font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
       font-size: 12px;
     }
+    .sync-panel {
+      border: 1px solid oklch(0.82 0.05 160);
+      background: var(--surface);
+    }
+    .sync-status {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .sync-status .metric {
+      background: var(--bg);
+      padding: 10px;
+    }
+    .sync-status .metric strong {
+      font-size: 16px;
+      overflow-wrap: anywhere;
+    }
+    .sync-help {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--bg);
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
     .toast {
       position: fixed;
       right: 16px;
@@ -1812,6 +1839,7 @@
         <section class="tab-panel" id="tab-machines"></section>
         <section class="tab-panel" id="tab-holidays"></section>
         <section class="tab-panel" id="tab-report"></section>
+        <section class="tab-panel" id="tab-sync"></section>
         <section class="tab-panel" id="tab-backup"></section>
       </div>
     </main>
@@ -1889,6 +1917,9 @@
 
   <script>
     const STORAGE_KEY = "tman.workplan.v1";
+    const DEFAULT_SYNC_URL = "https://tman-workplan-default-rtdb.firebaseio.com";
+    const SYNC_BACKUP_PREFIX = `${STORAGE_KEY}.syncBackup.`;
+    const SYNC_DEVICE_KEY = `${STORAGE_KEY}.deviceId`;
     const tabs = [
       ["dashboard", "สรุปโครงการ"],
       ["plan", "แผนงวดงาน"],
@@ -1900,6 +1931,7 @@
       ["machines", "เครื่องจักร"],
       ["holidays", "วันหยุดบริษัท"],
       ["report", "รายงาน / Export"],
+      ["sync", "ซิงค์ข้อมูล"],
       ["backup", "สำรองข้อมูล"]
     ];
 
@@ -1979,6 +2011,15 @@
           borrowDraft: {},
           periodDataBuilding: ""
         },
+        sync: {
+          databaseUrl: DEFAULT_SYNC_URL,
+          workspaceCode: "tman-main",
+          deviceName: "",
+          lastCloudUpdatedAt: "",
+          lastSyncedAt: "",
+          lastRevision: 0,
+          status: "ยังไม่ซิงค์"
+        },
         buildings: [""],
         manual: { ALL: { initialLaborCost: 0, initialMachineCost: 0, note: "" } },
         workers: [],
@@ -1988,6 +2029,29 @@
         periods: [],
         periodTemplates: {},
         machineUsage: {}
+      };
+    }
+
+    function syncDeviceId() {
+      let id = localStorage.getItem(SYNC_DEVICE_KEY);
+      if (!id) {
+        id = `device_${Math.random().toString(36).slice(2, 10)}`;
+        localStorage.setItem(SYNC_DEVICE_KEY, id);
+      }
+      return id;
+    }
+
+    function normalizeSyncSettings(sync = {}) {
+      return {
+        databaseUrl: String(sync.databaseUrl || DEFAULT_SYNC_URL).trim(),
+        workspaceCode: String(sync.workspaceCode || "tman-main").trim(),
+        deviceId: String(sync.deviceId || syncDeviceId()).trim(),
+        deviceName: String(sync.deviceName || "").trim(),
+        lastCloudUpdatedAt: String(sync.lastCloudUpdatedAt || "").trim(),
+        lastSyncedAt: String(sync.lastSyncedAt || "").trim(),
+        lastRevision: n(sync.lastRevision),
+        status: String(sync.status || "ยังไม่ซิงค์").trim(),
+        error: String(sync.error || "").trim()
       };
     }
 
@@ -2145,6 +2209,7 @@
         next.manual[building] = next.manual[building] || { initialLaborCost: 0, initialMachineCost: 0, note: "" };
       });
       next.ui = next.ui || {};
+      next.sync = normalizeSyncSettings(next.sync);
       if (!Array.isArray(next.workPlans) || !next.workPlans.length) {
         const firstId = "wp_1";
         next.workPlans = [{
@@ -3333,6 +3398,7 @@
       if (activeTab === "machines") renderMachines();
       if (activeTab === "holidays") renderHolidays();
       if (activeTab === "report") renderReport();
+      if (activeTab === "sync") renderSync();
       if (activeTab === "backup") renderBackup();
     }
 
@@ -4702,6 +4768,230 @@
                   <button class="danger" data-action="reset-sample">รีเซ็ตเป็นข้อมูลเริ่มต้น</button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function syncLabel(value) {
+      if (!value) return "-";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    function syncDeviceLabel() {
+      const sync = normalizeSyncSettings(state.sync);
+      return sync.deviceName || sync.deviceId || "unknown-device";
+    }
+
+    function syncEndpoint() {
+      const sync = normalizeSyncSettings(state.sync);
+      const base = sync.databaseUrl.replace(/\/+$/, "");
+      const workspace = encodeURIComponent(sync.workspaceCode || "tman-main");
+      if (!base || !workspace) throw new Error("ตั้งค่า Database URL และ Workspace Code ก่อน");
+      return `${base}/workspaces/${workspace}.json`;
+    }
+
+    function syncDataSnapshot() {
+      const snapshot = JSON.parse(JSON.stringify(state));
+      delete snapshot.sync;
+      snapshot.ui = {
+        activeWorkPlanId: snapshot.ui?.activeWorkPlanId || "",
+        planView: snapshot.ui?.planView || "",
+        manualView: snapshot.ui?.manualView || "ALL",
+        reportView: snapshot.ui?.reportView || "ALL",
+        reportMode: snapshot.ui?.reportMode || "full",
+        attendanceView: snapshot.ui?.attendanceView || "ALL",
+        attendanceExportMode: snapshot.ui?.attendanceExportMode || "full",
+        borrowView: snapshot.ui?.borrowView || "ALL",
+        borrowMonth: snapshot.ui?.borrowMonth || "",
+        periodDataBuilding: snapshot.ui?.periodDataBuilding || "",
+        fillMode: snapshot.ui?.fillMode || "all",
+        workerListMode: snapshot.ui?.workerListMode || "hide"
+      };
+      return snapshot;
+    }
+
+    function makeCloudPayload(cloud = null) {
+      const revision = Math.max(n(cloud?.revision), n(state.sync?.lastRevision)) + 1;
+      return {
+        app: "TMAN WorkPlan",
+        version: 1,
+        revision,
+        updatedAt: new Date().toISOString(),
+        updatedBy: syncDeviceLabel(),
+        data: syncDataSnapshot()
+      };
+    }
+
+    function saveSyncBackup(reason = "pull-cloud") {
+      const now = new Date();
+      const stamp = `${localISODate(now)}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+      localStorage.setItem(`${SYNC_BACKUP_PREFIX}${stamp}`, JSON.stringify({ createdAt: now.toISOString(), reason, state }));
+      const keys = [];
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index);
+        if (key?.startsWith(SYNC_BACKUP_PREFIX)) keys.push(key);
+      }
+      keys.sort().slice(0, Math.max(0, keys.length - 5)).forEach((key) => localStorage.removeItem(key));
+      return stamp;
+    }
+
+    function latestSyncBackupLabel() {
+      const keys = [];
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index);
+        if (key?.startsWith(SYNC_BACKUP_PREFIX)) keys.push(key);
+      }
+      const latest = keys.sort().at(-1);
+      return latest ? latest.replace(SYNC_BACKUP_PREFIX, "") : "-";
+    }
+
+    function setSyncStatus(status, error = "") {
+      state.sync = normalizeSyncSettings(state.sync);
+      state.sync.status = status;
+      state.sync.error = error;
+      saveState();
+      if (activeTab === "sync") renderSync();
+    }
+
+    async function fetchCloudPayload() {
+      const response = await fetch(syncEndpoint(), { method: "GET", cache: "no-store" });
+      if (!response.ok) throw new Error(`Firebase อ่านข้อมูลไม่ได้ (${response.status})`);
+      return response.json();
+    }
+
+    async function checkCloudSync() {
+      try {
+        setSyncStatus("กำลังตรวจ Cloud");
+        const cloud = await fetchCloudPayload();
+        state.sync.lastCloudUpdatedAt = cloud?.updatedAt || "";
+        if (cloud?.revision && n(cloud.revision) > n(state.sync.lastRevision)) {
+          setSyncStatus("Cloud ใหม่กว่า");
+          showToast("Cloud มีข้อมูลใหม่กว่าเครื่องนี้");
+        } else if (cloud?.revision) {
+          setSyncStatus("พร้อมซิงค์");
+          showToast("ตรวจ Cloud แล้ว");
+        } else {
+          setSyncStatus("Cloud ยังว่าง");
+          showToast("ยังไม่มีข้อมูลใน Cloud");
+        }
+      } catch (error) {
+        console.error(error);
+        setSyncStatus("ซิงค์ผิดพลาด", error.message || "ตรวจ Cloud ไม่สำเร็จ");
+        showToast(error.message || "ตรวจ Cloud ไม่สำเร็จ");
+      }
+    }
+
+    async function pushCloudSync() {
+      try {
+        setSyncStatus("กำลังส่งขึ้น Cloud");
+        let cloud = null;
+        try {
+          cloud = await fetchCloudPayload();
+        } catch (error) {
+          if (!String(error.message || "").includes("อ่านข้อมูลไม่ได้")) throw error;
+        }
+        if (cloud?.revision && n(cloud.revision) > n(state.sync.lastRevision)) {
+          const ok = confirm("Cloud มีข้อมูลใหม่กว่าเครื่องนี้ ต้องการส่งข้อมูลเครื่องนี้ขึ้นไปทับ Cloud ใช่ไหม?");
+          if (!ok) {
+            setSyncStatus("Cloud ใหม่กว่า");
+            return;
+          }
+        }
+        const payload = makeCloudPayload(cloud);
+        const response = await fetch(syncEndpoint(), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error(`Firebase เขียนข้อมูลไม่ได้ (${response.status})`);
+        state.sync.lastRevision = payload.revision;
+        state.sync.lastCloudUpdatedAt = payload.updatedAt;
+        state.sync.lastSyncedAt = payload.updatedAt;
+        setSyncStatus("ซิงค์สำเร็จ");
+        showToast(`ส่งขึ้น Cloud แล้ว revision ${payload.revision}`);
+      } catch (error) {
+        console.error(error);
+        setSyncStatus("ซิงค์ผิดพลาด", error.message || "ส่งขึ้น Cloud ไม่สำเร็จ");
+        showToast(error.message || "ส่งขึ้น Cloud ไม่สำเร็จ");
+      }
+    }
+
+    async function pullCloudSync() {
+      try {
+        setSyncStatus("กำลังดึงจาก Cloud");
+        const cloud = await fetchCloudPayload();
+        if (!cloud?.data) {
+          setSyncStatus("Cloud ยังว่าง");
+          return showToast("ยังไม่มีข้อมูลใน Cloud");
+        }
+        const ok = confirm("ดึงข้อมูลจาก Cloud ลงเครื่องนี้? ระบบจะสำรองข้อมูลเดิมไว้ก่อนทับ");
+        if (!ok) {
+          setSyncStatus("พร้อมซิงค์");
+          return;
+        }
+        const sync = normalizeSyncSettings(state.sync);
+        const backupStamp = saveSyncBackup("before-pull-cloud");
+        const next = normalizeState(cloud.data);
+        next.sync = {
+          ...sync,
+          lastRevision: n(cloud.revision),
+          lastCloudUpdatedAt: cloud.updatedAt || "",
+          lastSyncedAt: new Date().toISOString(),
+          status: "ซิงค์สำเร็จ",
+          error: ""
+        };
+        state = normalizeState(next);
+        undoStack = [];
+        redoStack = [];
+        saveState();
+        renderAll();
+        showToast(`ดึงข้อมูลจาก Cloud แล้ว สำรองเดิมไว้ ${backupStamp}`);
+      } catch (error) {
+        console.error(error);
+        setSyncStatus("ซิงค์ผิดพลาด", error.message || "ดึงจาก Cloud ไม่สำเร็จ");
+        showToast(error.message || "ดึงจาก Cloud ไม่สำเร็จ");
+      }
+    }
+
+    function renderSync() {
+      const el = $("#tab-sync");
+      const sync = normalizeSyncSettings(state.sync);
+      state.sync = sync;
+      const ready = sync.databaseUrl && sync.workspaceCode;
+      el.innerHTML = `
+        <div class="section sync-panel">
+          <div class="panel-head">
+            <div>
+              <h2>ซิงค์ข้อมูล Cloud</h2>
+              <p>ใช้ข้อมูลชุดเดียวกันบนมือถือ แท็บเล็ต และโน้ตบุ๊ก ผ่าน Firebase Realtime Database</p>
+            </div>
+            <span class="pill ${sync.status === "ซิงค์สำเร็จ" ? "green" : sync.status.includes("ผิดพลาด") ? "red" : "amber"}">${esc(sync.status)}</span>
+          </div>
+          <div class="panel-body">
+            <div class="sync-status">
+              <div class="metric"><span>Workspace Code</span><strong>${esc(sync.workspaceCode || "-")}</strong></div>
+              <div class="metric"><span>Revision เครื่องนี้</span><strong>${money(sync.lastRevision, 0)}</strong></div>
+              <div class="metric"><span>Cloud อัปเดตล่าสุด</span><strong>${esc(syncLabel(sync.lastCloudUpdatedAt))}</strong></div>
+              <div class="metric"><span>สำรองก่อนดึงล่าสุด</span><strong>${esc(latestSyncBackupLabel())}</strong></div>
+            </div>
+            <div class="form-grid">
+              <label style="grid-column:1/-1"><span>Firebase Database URL</span><input data-sync-field="databaseUrl" value="${esc(sync.databaseUrl)}" placeholder="https://...firebaseio.com"></label>
+              <label><span>Workspace Code</span><input data-sync-field="workspaceCode" value="${esc(sync.workspaceCode)}" placeholder="tman-main"></label>
+              <label><span>ชื่อเครื่องนี้</span><input data-sync-field="deviceName" value="${esc(sync.deviceName)}" placeholder="notebook, phone, tablet"></label>
+              <label><span>Device ID</span><input value="${esc(sync.deviceId)}" readonly></label>
+            </div>
+            ${sync.error ? `<div class="error" style="margin-top:10px">${esc(sync.error)}</div>` : ""}
+            <div class="inline-list" style="margin-top:12px">
+              <button data-action="sync-check" ${ready ? "" : "disabled"}>ตรวจ Cloud</button>
+              <button class="primary" data-action="sync-push" ${ready ? "" : "disabled"}>ส่งข้อมูลขึ้น Cloud</button>
+              <button data-action="sync-pull" ${ready ? "" : "disabled"}>ดึงข้อมูลจาก Cloud</button>
+            </div>
+            <div class="sync-help" style="margin-top:12px">
+              เริ่มใช้งานแนะนำ: เครื่องหลักกดส่งข้อมูลขึ้น Cloud ก่อน จากนั้นมือถือหรือเครื่องอื่นกดดึงข้อมูลจาก Cloud ระบบจะสำรองข้อมูลเดิมอัตโนมัติก่อนดึงทับ
             </div>
           </div>
         </div>
@@ -6081,6 +6371,9 @@
       if (action === "copy-json") return copyJson();
       if (action === "import-json") return importJson();
       if (action === "reset-sample") return resetSample();
+      if (action === "sync-check") return checkCloudSync();
+      if (action === "sync-push") return pushCloudSync();
+      if (action === "sync-pull") return pullCloudSync();
       if (action === "download-report") return downloadReport();
       if (action === "download-report-pdf") return downloadReportPdf();
       if (action === "download-attendance-png") return downloadAttendancePng();
@@ -6094,6 +6387,14 @@
       if (target.dataset.splitField) return updateSplitDraftField(target);
       if (target.dataset.accumField) return refreshAccumDialogTotals();
       if (target.dataset.borrowField) return updateBorrowDraftField(target);
+      if (target.dataset.syncField) {
+        state.sync = normalizeSyncSettings(state.sync);
+        state.sync[target.dataset.syncField] = target.value.trim();
+        state.sync.status = "พร้อมซิงค์";
+        state.sync.error = "";
+        saveState();
+        return;
+      }
       if (target.dataset.setting) {
         const key = target.dataset.setting;
         if (["dayHours", "controlPercent"].includes(key)) state.settings[key] = n(target.value);
