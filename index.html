@@ -1918,8 +1918,20 @@
   <script>
     const STORAGE_KEY = "tman.workplan.v1";
     const DEFAULT_SYNC_URL = "https://tman-workplan-default-rtdb.firebaseio.com";
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyCj7yf38AkyEkQq1UY5OM9v97QIKhIriCA",
+      authDomain: "tman-workplan.firebaseapp.com",
+      projectId: "tman-workplan",
+      databaseURL: DEFAULT_SYNC_URL,
+      storageBucket: "tman-workplan.firebasestorage.app",
+      messagingSenderId: "622255621034",
+      appId: "1:622255621034:web:a713aac4327f8065a761d3",
+      measurementId: "G-YRV0YDYH7M"
+    };
+    const AUTH_STORAGE_KEY = `${STORAGE_KEY}.auth`;
     const SYNC_BACKUP_PREFIX = `${STORAGE_KEY}.syncBackup.`;
     const SYNC_DEVICE_KEY = `${STORAGE_KEY}.deviceId`;
+    const AUTO_SYNC_DELAY_MS = 2500;
     const tabs = [
       ["dashboard", "สรุปโครงการ"],
       ["plan", "แผนงวดงาน"],
@@ -1964,6 +1976,10 @@
     let appClipboard = null;
     let suppressCellClick = false;
     let toastTimer = null;
+    let firebaseAuthState = null;
+    let autoSyncTimer = null;
+    let syncBusy = false;
+    let suppressAutoSync = false;
 
     function makePlan() { return {}; }
     function makeActual() { return {}; }
@@ -2015,6 +2031,9 @@
           databaseUrl: DEFAULT_SYNC_URL,
           workspaceCode: "tman-main",
           deviceName: "",
+          autoSync: false,
+          authEmail: "",
+          authUid: "",
           lastCloudUpdatedAt: "",
           lastSyncedAt: "",
           lastRevision: 0,
@@ -2047,12 +2066,174 @@
         workspaceCode: String(sync.workspaceCode || "tman-main").trim(),
         deviceId: String(sync.deviceId || syncDeviceId()).trim(),
         deviceName: String(sync.deviceName || "").trim(),
+        autoSync: Boolean(sync.autoSync),
+        authEmail: String(sync.authEmail || "").trim(),
+        authUid: String(sync.authUid || "").trim(),
         lastCloudUpdatedAt: String(sync.lastCloudUpdatedAt || "").trim(),
         lastSyncedAt: String(sync.lastSyncedAt || "").trim(),
         lastRevision: n(sync.lastRevision),
         status: String(sync.status || "ยังไม่ซิงค์").trim(),
         error: String(sync.error || "").trim()
       };
+    }
+
+    function normalizeAuthState(auth = {}) {
+      if (!auth || typeof auth !== "object") return null;
+      const uidValue = String(auth.uid || auth.localId || "").trim();
+      const tokenValue = String(auth.idToken || "").trim();
+      if (!uidValue || !tokenValue) return null;
+      return {
+        uid: uidValue,
+        email: String(auth.email || "").trim(),
+        idToken: tokenValue,
+        refreshToken: String(auth.refreshToken || "").trim(),
+        expiresAt: n(auth.expiresAt)
+      };
+    }
+
+    function loadAuthState() {
+      try {
+        return normalizeAuthState(JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || "null"));
+      } catch {
+        return null;
+      }
+    }
+
+    function saveAuthState(auth = firebaseAuthState) {
+      const normalized = normalizeAuthState(auth);
+      if (!normalized) {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        return null;
+      }
+      firebaseAuthState = normalized;
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(normalized));
+      if (state) {
+        state.sync = normalizeSyncSettings(state.sync);
+        state.sync.authEmail = normalized.email;
+        state.sync.authUid = normalized.uid;
+        saveState({ skipAutoSync: true });
+      }
+      return normalized;
+    }
+
+    function clearAuthState() {
+      firebaseAuthState = null;
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      if (state) {
+        state.sync = normalizeSyncSettings(state.sync);
+        state.sync.authEmail = "";
+        state.sync.authUid = "";
+        saveState({ skipAutoSync: true });
+      }
+    }
+
+    function authReady() {
+      return Boolean(firebaseAuthState?.uid && firebaseAuthState?.idToken);
+    }
+
+    function firebaseAuthError(message = "") {
+      const code = String(message || "").split(" : ")[0];
+      const labels = {
+        EMAIL_NOT_FOUND: "ไม่พบอีเมลนี้ใน Firebase",
+        INVALID_PASSWORD: "รหัสผ่านไม่ถูกต้อง",
+        INVALID_LOGIN_CREDENTIALS: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+        USER_DISABLED: "บัญชีนี้ถูกปิดใช้งาน",
+        TOO_MANY_ATTEMPTS_TRY_LATER: "พยายามเข้าสู่ระบบหลายครั้งเกินไป กรุณาลองใหม่ภายหลัง",
+        TOKEN_EXPIRED: "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่",
+        INVALID_REFRESH_TOKEN: "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่"
+      };
+      return labels[code] || message || "เข้าสู่ระบบ Firebase ไม่สำเร็จ";
+    }
+
+    async function firebaseSignIn(email, password) {
+      const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_CONFIG.apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, returnSecureToken: true })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(firebaseAuthError(data?.error?.message));
+      return saveAuthState({
+        uid: data.localId,
+        email: data.email,
+        idToken: data.idToken,
+        refreshToken: data.refreshToken,
+        expiresAt: Date.now() + n(data.expiresIn || 3600) * 1000
+      });
+    }
+
+    async function firebaseRefreshToken() {
+      if (!firebaseAuthState?.refreshToken) throw new Error("เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่");
+      const form = new URLSearchParams();
+      form.set("grant_type", "refresh_token");
+      form.set("refresh_token", firebaseAuthState.refreshToken);
+      const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${FIREBASE_CONFIG.apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString()
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(firebaseAuthError(data?.error?.message));
+      return saveAuthState({
+        uid: data.user_id || firebaseAuthState.uid,
+        email: firebaseAuthState.email,
+        idToken: data.id_token,
+        refreshToken: data.refresh_token || firebaseAuthState.refreshToken,
+        expiresAt: Date.now() + n(data.expires_in || 3600) * 1000
+      });
+    }
+
+    async function ensureAuthToken() {
+      if (!firebaseAuthState?.uid) throw new Error("กรุณาเข้าสู่ระบบก่อนซิงค์ข้อมูล");
+      if (!firebaseAuthState.idToken) throw new Error("เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่");
+      if (firebaseAuthState.expiresAt && Date.now() > firebaseAuthState.expiresAt - 60000) {
+        return firebaseRefreshToken();
+      }
+      return firebaseAuthState;
+    }
+
+    async function loginFirebaseUser() {
+      const email = $("#syncEmail")?.value.trim();
+      const password = $("#syncPassword")?.value || "";
+      if (!email || !password) return showToast("กรอกอีเมลและรหัสผ่านก่อน");
+      try {
+        setSyncStatus("กำลังเข้าสู่ระบบ");
+        await firebaseSignIn(email, password);
+        setSyncStatus("เข้าสู่ระบบแล้ว");
+        showToast("เข้าสู่ระบบ Firebase แล้ว");
+        renderSync();
+        if (state.sync?.autoSync) {
+          const cloud = await checkCloudSync({ silent: true });
+          if (cloud?.data && n(cloud.revision) > n(state.sync.lastRevision)) {
+            showToast("Cloud มีข้อมูลใหม่กว่า กดดึงข้อมูลเมื่อพร้อม");
+          }
+        }
+      } catch (error) {
+        console.error(error);
+        clearAuthState();
+        setSyncStatus("เข้าสู่ระบบผิดพลาด", error.message || "เข้าสู่ระบบไม่สำเร็จ");
+        showToast(error.message || "เข้าสู่ระบบไม่สำเร็จ");
+      }
+    }
+
+    function logoutFirebaseUser() {
+      clearAuthState();
+      setSyncStatus("ออกจากระบบแล้ว");
+      showToast("ออกจากระบบ Firebase แล้ว");
+      renderSync();
+    }
+
+    function shouldAutoSync() {
+      return Boolean(state?.sync?.autoSync && authReady() && !syncBusy && !suppressAutoSync);
+    }
+
+    function scheduleAutoSync(reason = "") {
+      if (!shouldAutoSync()) return;
+      clearTimeout(autoSyncTimer);
+      autoSyncTimer = setTimeout(() => {
+        autoSyncTimer = null;
+        if (shouldAutoSync()) pushCloudSync({ auto: true, reason });
+      }, AUTO_SYNC_DELAY_MS);
     }
 
     function cloneActual(actual = {}) {
@@ -2250,9 +2431,16 @@
     }
 
     state = loadState();
+    firebaseAuthState = loadAuthState();
+    if (firebaseAuthState) {
+      state.sync = normalizeSyncSettings(state.sync);
+      state.sync.authEmail = firebaseAuthState.email;
+      state.sync.authUid = firebaseAuthState.uid;
+    }
 
-    function saveState() {
+    function saveState(options = {}) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (!options.skipAutoSync) scheduleAutoSync("state-save");
     }
 
     function stateSnapshot() {
@@ -2268,7 +2456,7 @@
 
     function restoreSnapshot(snapshot) {
       state = normalizeState(JSON.parse(snapshot));
-      saveState();
+      saveState({ skipAutoSync: true });
       renderAll();
       updateHistoryButtons();
     }
@@ -4786,12 +4974,15 @@
       return sync.deviceName || sync.deviceId || "unknown-device";
     }
 
-    function syncEndpoint() {
+    async function syncEndpoint() {
       const sync = normalizeSyncSettings(state.sync);
       const base = sync.databaseUrl.replace(/\/+$/, "");
       const workspace = encodeURIComponent(sync.workspaceCode || "tman-main");
       if (!base || !workspace) throw new Error("ตั้งค่า Database URL และ Workspace Code ก่อน");
-      return `${base}/workspaces/${workspace}.json`;
+      const auth = await ensureAuthToken();
+      const uidPath = encodeURIComponent(auth.uid);
+      const token = encodeURIComponent(auth.idToken);
+      return `${base}/users/${uidPath}/workspaces/${workspace}.json?auth=${token}`;
     }
 
     function syncDataSnapshot() {
@@ -4853,22 +5044,27 @@
       state.sync = normalizeSyncSettings(state.sync);
       state.sync.status = status;
       state.sync.error = error;
-      saveState();
+      saveState({ skipAutoSync: true });
       if (activeTab === "sync") renderSync();
     }
 
     async function fetchCloudPayload() {
-      const response = await fetch(syncEndpoint(), { method: "GET", cache: "no-store" });
+      const response = await fetch(await syncEndpoint(), { method: "GET", cache: "no-store" });
       if (!response.ok) throw new Error(`Firebase อ่านข้อมูลไม่ได้ (${response.status})`);
       return response.json();
     }
 
-    async function checkCloudSync() {
+    async function checkCloudSync(options = {}) {
       try {
         setSyncStatus("กำลังตรวจ Cloud");
         const cloud = await fetchCloudPayload();
         state.sync.lastCloudUpdatedAt = cloud?.updatedAt || "";
         if (cloud?.revision && n(cloud.revision) > n(state.sync.lastRevision)) {
+          if (options.auto) {
+            setSyncStatus("Cloud à¹ƒà¸«à¸¡à¹ˆà¸à¸§à¹ˆà¸²");
+            showToast("Cloud à¹ƒà¸«à¸¡à¹ˆà¸à¸§à¹ˆà¸² à¸«à¸¢à¸¸à¸” Auto Sync à¹„à¸§à¹‰à¸à¹ˆà¸­à¸™");
+            return;
+          }
           setSyncStatus("Cloud ใหม่กว่า");
           showToast("Cloud มีข้อมูลใหม่กว่าเครื่องนี้");
         } else if (cloud?.revision) {
@@ -4885,7 +5081,9 @@
       }
     }
 
-    async function pushCloudSync() {
+    async function pushCloudSync(options = {}) {
+      if (syncBusy) return;
+      syncBusy = true;
       try {
         setSyncStatus("กำลังส่งขึ้น Cloud");
         let cloud = null;
@@ -4895,6 +5093,11 @@
           if (!String(error.message || "").includes("อ่านข้อมูลไม่ได้")) throw error;
         }
         if (cloud?.revision && n(cloud.revision) > n(state.sync.lastRevision)) {
+          if (options.auto) {
+            setSyncStatus("Cloud ใหม่กว่า");
+            showToast("Cloud ใหม่กว่า หยุด Auto Sync ไว้ก่อน");
+            return;
+          }
           const ok = confirm("Cloud มีข้อมูลใหม่กว่าเครื่องนี้ ต้องการส่งข้อมูลเครื่องนี้ขึ้นไปทับ Cloud ใช่ไหม?");
           if (!ok) {
             setSyncStatus("Cloud ใหม่กว่า");
@@ -4902,7 +5105,7 @@
           }
         }
         const payload = makeCloudPayload(cloud);
-        const response = await fetch(syncEndpoint(), {
+        const response = await fetch(await syncEndpoint(), {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -4917,10 +5120,14 @@
         console.error(error);
         setSyncStatus("ซิงค์ผิดพลาด", error.message || "ส่งขึ้น Cloud ไม่สำเร็จ");
         showToast(error.message || "ส่งขึ้น Cloud ไม่สำเร็จ");
+      } finally {
+        syncBusy = false;
       }
     }
 
-    async function pullCloudSync() {
+    async function pullCloudSync(options = {}) {
+      if (syncBusy) return;
+      syncBusy = true;
       try {
         setSyncStatus("กำลังดึงจาก Cloud");
         const cloud = await fetchCloudPayload();
@@ -4947,13 +5154,15 @@
         state = normalizeState(next);
         undoStack = [];
         redoStack = [];
-        saveState();
+        saveState({ skipAutoSync: true });
         renderAll();
         showToast(`ดึงข้อมูลจาก Cloud แล้ว สำรองเดิมไว้ ${backupStamp}`);
       } catch (error) {
         console.error(error);
         setSyncStatus("ซิงค์ผิดพลาด", error.message || "ดึงจาก Cloud ไม่สำเร็จ");
         showToast(error.message || "ดึงจาก Cloud ไม่สำเร็จ");
+      } finally {
+        syncBusy = false;
       }
     }
 
@@ -4992,6 +5201,108 @@
             </div>
             <div class="sync-help" style="margin-top:12px">
               เริ่มใช้งานแนะนำ: เครื่องหลักกดส่งข้อมูลขึ้น Cloud ก่อน จากนั้นมือถือหรือเครื่องอื่นกดดึงข้อมูลจาก Cloud ระบบจะสำรองข้อมูลเดิมอัตโนมัติก่อนดึงทับ
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSync() {
+      const el = $("#tab-sync");
+      const sync = normalizeSyncSettings(state.sync);
+      state.sync = sync;
+      const hasLogin = authReady();
+      const ready = Boolean(sync.databaseUrl && sync.workspaceCode && hasLogin);
+      const busyAttr = syncBusy ? "disabled" : "";
+      const syncPill = sync.status === "ซิงค์สำเร็จ" || sync.status === "เข้าสู่ระบบแล้ว"
+        ? "green"
+        : sync.status.includes("ผิดพลาด") || sync.status.includes("ออกจากระบบ")
+          ? "red"
+          : "amber";
+      const authPanel = hasLogin ? `
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>บัญชี Firebase</h2>
+              <p>ข้อมูลจะถูกเก็บที่ users/${esc(firebaseAuthState.uid)}/workspaces/${esc(sync.workspaceCode || "tman-main")}</p>
+            </div>
+            <span class="pill green">เข้าสู่ระบบแล้ว</span>
+          </div>
+          <div class="panel-body">
+            <div class="sync-status">
+              <div class="metric"><span>Email</span><strong>${esc(firebaseAuthState.email || "-")}</strong></div>
+              <div class="metric"><span>User UID</span><strong>${esc(firebaseAuthState.uid)}</strong></div>
+              <div class="metric"><span>Token หมดอายุ</span><strong>${esc(syncLabel(firebaseAuthState.expiresAt || ""))}</strong></div>
+            </div>
+            <div class="inline-list" style="margin-top:12px">
+              <button class="danger" data-action="auth-logout" ${busyAttr}>ออกจากระบบ</button>
+            </div>
+          </div>
+        </div>
+      ` : `
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>เข้าสู่ระบบ Firebase</h2>
+              <p>ใช้อีเมลและรหัสผ่านที่สร้างไว้ใน Firebase Authentication</p>
+            </div>
+            <span class="pill amber">ยังไม่เข้าสู่ระบบ</span>
+          </div>
+          <div class="panel-body">
+            <div class="form-grid">
+              <label><span>Email</span><input id="syncEmail" type="email" autocomplete="username" value="${esc(sync.authEmail)}" placeholder="you@example.com"></label>
+              <label><span>Password</span><input id="syncPassword" type="password" autocomplete="current-password" placeholder="Firebase password"></label>
+              <button class="primary" data-action="auth-login" ${syncBusy ? "disabled" : ""}>เข้าสู่ระบบ</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      el.innerHTML = `
+        <div class="section sync-panel">
+          <div class="panel-head">
+            <div>
+              <h2>ซิงค์ข้อมูล Cloud</h2>
+              <p>ใช้ข้อมูลชุดเดียวกันบนมือถือ แท็บเล็ต และโน้ตบุ๊ก ผ่าน Firebase Realtime Database</p>
+            </div>
+            <span class="pill ${syncPill}">${esc(sync.status)}</span>
+          </div>
+          <div class="panel-body">
+            ${authPanel}
+            <div class="panel" style="margin-top:12px">
+              <div class="panel-head">
+                <div>
+                  <h2>ตั้งค่าพื้นที่ข้อมูล</h2>
+                  <p>Workspace Code คือชื่อชุดข้อมูล เช่น tman-main ถ้าเปลี่ยน code จะเป็นข้อมูลอีกชุดหนึ่ง</p>
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;font-weight:700">
+                  <input type="checkbox" data-sync-toggle="autoSync" ${sync.autoSync ? "checked" : ""} ${hasLogin ? "" : "disabled"}>
+                  Auto Sync
+                </label>
+              </div>
+              <div class="panel-body">
+                <div class="sync-status">
+                  <div class="metric"><span>Workspace Code</span><strong>${esc(sync.workspaceCode || "-")}</strong></div>
+                  <div class="metric"><span>Revision เครื่องนี้</span><strong>${money(sync.lastRevision, 0)}</strong></div>
+                  <div class="metric"><span>Cloud อัปเดตล่าสุด</span><strong>${esc(syncLabel(sync.lastCloudUpdatedAt))}</strong></div>
+                  <div class="metric"><span>สำรองก่อนดึงล่าสุด</span><strong>${esc(latestSyncBackupLabel())}</strong></div>
+                </div>
+                <div class="form-grid" style="margin-top:12px">
+                  <label style="grid-column:1/-1"><span>Firebase Database URL</span><input data-sync-field="databaseUrl" value="${esc(sync.databaseUrl)}" placeholder="https://...firebaseio.com"></label>
+                  <label><span>Workspace Code</span><input data-sync-field="workspaceCode" value="${esc(sync.workspaceCode)}" placeholder="tman-main"></label>
+                  <label><span>ชื่อเครื่องนี้</span><input data-sync-field="deviceName" value="${esc(sync.deviceName)}" placeholder="notebook, phone, tablet"></label>
+                  <label><span>Device ID</span><input value="${esc(sync.deviceId)}" readonly></label>
+                </div>
+                ${sync.error ? `<div class="error" style="margin-top:10px">${esc(sync.error)}</div>` : ""}
+                <div class="inline-list" style="margin-top:12px">
+                  <button data-action="sync-check" ${ready ? "" : "disabled"}>ตรวจ Cloud</button>
+                  <button class="primary" data-action="sync-push" ${ready ? "" : "disabled"}>ส่งข้อมูลขึ้น Cloud</button>
+                  <button data-action="sync-pull" ${ready ? "" : "disabled"}>ดึงข้อมูลจาก Cloud</button>
+                </div>
+                <div class="sync-help" style="margin-top:12px">
+                  ครั้งแรกหลังเพิ่ม Login แนะนำให้เครื่องที่มีข้อมูลล่าสุดกด “ส่งข้อมูลขึ้น Cloud” ก่อน จากนั้นเครื่องอื่นเข้าสู่ระบบและกด “ดึงข้อมูลจาก Cloud” แล้วค่อยเปิด Auto Sync
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -6371,6 +6682,8 @@
       if (action === "copy-json") return copyJson();
       if (action === "import-json") return importJson();
       if (action === "reset-sample") return resetSample();
+      if (action === "auth-login") return loginFirebaseUser();
+      if (action === "auth-logout") return logoutFirebaseUser();
       if (action === "sync-check") return checkCloudSync();
       if (action === "sync-push") return pushCloudSync();
       if (action === "sync-pull") return pullCloudSync();
@@ -6392,7 +6705,17 @@
         state.sync[target.dataset.syncField] = target.value.trim();
         state.sync.status = "พร้อมซิงค์";
         state.sync.error = "";
-        saveState();
+        saveState({ skipAutoSync: true });
+        return;
+      }
+      if (target.dataset.syncToggle) {
+        state.sync = normalizeSyncSettings(state.sync);
+        state.sync[target.dataset.syncToggle] = target.checked;
+        state.sync.status = target.checked ? "Auto Sync เปิดอยู่" : "พร้อมซิงค์";
+        state.sync.error = "";
+        saveState({ skipAutoSync: true });
+        if (target.checked) scheduleAutoSync("auto-toggle");
+        renderSync();
         return;
       }
       if (target.dataset.setting) {
