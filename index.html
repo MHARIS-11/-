@@ -1932,6 +1932,7 @@
     const SYNC_BACKUP_PREFIX = `${STORAGE_KEY}.syncBackup.`;
     const SYNC_DEVICE_KEY = `${STORAGE_KEY}.deviceId`;
     const SYNC_DIRTY_KEY = `${STORAGE_KEY}.syncDirtyAt`;
+    const SYNC_DIRTY_HASH_KEY = `${STORAGE_KEY}.syncDirtyHash`;
     const AUTO_SYNC_DELAY_MS = 2500;
     const AUTO_PULL_INTERVAL_MS = 15000;
     const tabs = [
@@ -1984,6 +1985,8 @@
     let syncBusy = false;
     let suppressAutoSync = false;
     let localDirtyAt = Number(localStorage.getItem(SYNC_DIRTY_KEY) || 0);
+    let localDirtyHash = localStorage.getItem(SYNC_DIRTY_HASH_KEY) || "";
+    let lastBusinessHash = "";
 
     function makePlan() { return {}; }
     function makeActual() { return {}; }
@@ -2064,14 +2067,28 @@
       return id;
     }
 
-    function markLocalDirty() {
+    function markLocalDirty(hash = syncBusinessHash()) {
       localDirtyAt = Date.now();
+      localDirtyHash = hash || "";
       localStorage.setItem(SYNC_DIRTY_KEY, String(localDirtyAt));
+      if (localDirtyHash) localStorage.setItem(SYNC_DIRTY_HASH_KEY, localDirtyHash);
+      else localStorage.removeItem(SYNC_DIRTY_HASH_KEY);
     }
 
     function clearLocalDirty() {
       localDirtyAt = 0;
+      localDirtyHash = "";
       localStorage.removeItem(SYNC_DIRTY_KEY);
+      localStorage.removeItem(SYNC_DIRTY_HASH_KEY);
+    }
+
+    function hasLocalDirty() {
+      if (!localDirtyAt) return false;
+      if (!localDirtyHash) {
+        clearLocalDirty();
+        return false;
+      }
+      return true;
     }
 
     function normalizeSyncSettings(sync = {}) {
@@ -2472,13 +2489,17 @@
       state.sync.authEmail = firebaseAuthState.email;
       state.sync.authUid = firebaseAuthState.uid;
     }
+    lastBusinessHash = syncBusinessHash();
 
     function saveState(options = {}) {
+      const currentBusinessHash = syncBusinessHash();
+      const businessChanged = Boolean(currentBusinessHash && currentBusinessHash !== lastBusinessHash);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      if (!options.skipAutoSync) {
-        markLocalDirty();
+      if (!options.skipAutoSync && (options.markDirty || businessChanged)) {
+        markLocalDirty(currentBusinessHash);
         scheduleAutoSync("state-save");
       }
+      if (currentBusinessHash) lastBusinessHash = currentBusinessHash;
     }
 
     function stateSnapshot() {
@@ -5043,6 +5064,22 @@
       return snapshot;
     }
 
+    function syncBusinessSnapshot() {
+      const snapshot = JSON.parse(JSON.stringify(state));
+      delete snapshot.sync;
+      delete snapshot.ui;
+      return snapshot;
+    }
+
+    function syncBusinessHash() {
+      try {
+        return JSON.stringify(syncBusinessSnapshot());
+      } catch (error) {
+        console.error(error);
+        return "";
+      }
+    }
+
     function makeCloudPayload(cloud = null) {
       const revision = Math.max(n(cloud?.revision), n(state.sync?.lastRevision)) + 1;
       return {
@@ -5121,7 +5158,7 @@
 
     async function autoPullCloudSync(options = {}) {
       if (!shouldAutoPull()) return;
-      if (localDirtyAt) {
+      if (hasLocalDirty()) {
         setSyncStatus("Auto Sync รอส่งข้อมูลเครื่องนี้ก่อน");
         return;
       }
@@ -5159,6 +5196,7 @@
         };
         state = normalizeState(next);
         clearLocalDirty();
+        lastBusinessHash = syncBusinessHash();
         undoStack = [];
         redoStack = [];
         saveState({ skipAutoSync: true });
@@ -5206,6 +5244,7 @@
         state.sync.lastCloudUpdatedAt = payload.updatedAt;
         state.sync.lastSyncedAt = payload.updatedAt;
         clearLocalDirty();
+        lastBusinessHash = syncBusinessHash();
         setSyncStatus("ซิงค์สำเร็จ");
         showToast(`ส่งขึ้น Cloud แล้ว revision ${payload.revision}`);
         scheduleAutoPull("after-push");
@@ -5246,6 +5285,7 @@
         };
         state = normalizeState(next);
         clearLocalDirty();
+        lastBusinessHash = syncBusinessHash();
         undoStack = [];
         redoStack = [];
         saveState({ skipAutoSync: true });
@@ -5314,6 +5354,7 @@
         : sync.status.includes("ผิดพลาด") || sync.status.includes("ออกจากระบบ")
           ? "red"
           : "amber";
+      const deviceSyncStatus = hasLocalDirty() ? "มีข้อมูลรอส่ง" : "พร้อมรับ Cloud";
       const authPanel = hasLogin ? `
         <div class="panel">
           <div class="panel-head">
@@ -5379,6 +5420,7 @@
                 <div class="sync-status">
                   <div class="metric"><span>Workspace Code</span><strong>${esc(sync.workspaceCode || "-")}</strong></div>
                   <div class="metric"><span>Revision เครื่องนี้</span><strong>${money(sync.lastRevision, 0)}</strong></div>
+                  <div class="metric"><span>สถานะเครื่องนี้</span><strong>${esc(deviceSyncStatus)}</strong></div>
                   <div class="metric"><span>Cloud อัปเดตล่าสุด</span><strong>${esc(syncLabel(sync.lastCloudUpdatedAt))}</strong></div>
                   <div class="metric"><span>สำรองก่อนดึงล่าสุด</span><strong>${esc(latestSyncBackupLabel())}</strong></div>
                 </div>
@@ -8258,7 +8300,7 @@
     });
 
     renderAll();
-    if (localDirtyAt) scheduleAutoSync("init-dirty");
+    if (hasLocalDirty()) scheduleAutoSync("init-dirty");
     scheduleAutoPull("init");
   </script>
 </body>
